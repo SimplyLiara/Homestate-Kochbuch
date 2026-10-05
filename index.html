@@ -42,19 +42,32 @@ td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertic
 .warn{border-left:5px solid var(--danger)}
 .login{max-width:380px;margin:64px auto}
 input[type=search]{margin:10px 0}
+.grid2{display:grid;grid-template-columns:2fr 1fr auto;gap:6px;align-items:end;margin-top:8px}
+@media(max-width:620px){.grid2{grid-template-columns:1fr 1fr}.grid2 .x{grid-column:span 2}}
 ul.ing{margin:6px 0 0;padding-left:1.2em}
 </style>
 </head>
 <body>
-<script id="state" type="application/json">{"users":[{"name":"admin","hash":"8da193366e1554c08b2870c50f737b9587c3372b656151c4a96028af26f51334","role":"admin","charName":"Lia Blake","birth":"1997-12-27"}],"dishes":[{"id":"d1791197808801","station":"herd","name":"Eier-Sandwich","epPer":0,"weight":0.2,"portions":0,"ingredients":[{"name":"Ei","qty":1,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Eisbergsalat","qty":1,"weight":0.5,"shop":"General Store 1","usd":0.65,"mxn":0},{"name":"Toast","qty":1,"weight":0.5,"shop":"24/7","usd":2,"mxn":0}]},{"id":"d1791198914528","station":"herd","name":"Rührei","epPer":9,"weight":0.2,"portions":1,"ingredients":[{"name":"Ei","qty":3,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Milch","qty":1,"weight":0.5,"shop":"Bauernhof","usd":1.85,"mxn":0},{"name":"Bündel Schnittlauch","qty":1,"weight":0.1,"shop":"General Store 3","usd":0.4,"mxn":0}]},{"id":"d1791202133863","station":"herd","name":"TK Pizza","epPer":0,"weight":0,"portions":0,"ingredients":[{"name":"TK Pizza (gefroren)","qty":1,"weight":0,"shop":"","usd":0,"mxn":0}]},{"id":"d1791202169678","station":"herd","name":"TK Lasagne","epPer":0,"weight":0,"portions":0,"ingredients":[{"name":"TK Lasagne (gefroren)","qty":1,"weight":0,"shop":"","usd":0,"mxn":0}]}]}</script>
+<script id="state" type="application/json">{"users":[{"name":"admin","hash":"8da193366e1554c08b2870c50f737b9587c3372b656151c4a96028af26f51334","role":"admin","charName":"Lia Blake","birth":"1997-12-27"}],"dishes":[{"id":"d1791197808801","station":"herd","name":"Eier-Sandwich","epPer":0,"weight":0.2,"portions":0,"ingredients":[{"name":"Ei","qty":1,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Eisbergsalat","qty":1,"weight":0.5,"shop":"General Store 1","usd":0.65,"mxn":0},{"name":"Toast","qty":1,"weight":0.5,"shop":"24/7","usd":2,"mxn":0}]},{"id":"d1791198914528","station":"herd","name":"Rührei","epPer":9,"weight":0.2,"portions":1,"ingredients":[{"name":"Ei","qty":3,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Milch","qty":1,"weight":0.5,"shop":"Bauernhof","usd":1.85,"mxn":0},{"name":"Bündel Schnittlauch","qty":1,"weight":0.1,"shop":"General Store 3","usd":0.4,"mxn":0}]}]}</script>
 <div id="app"></div>
 <script>
 (function(){
   var S=JSON.parse(document.getElementById("state").textContent);
+  if(!S.ingredients){
+    S.ingredients=[];
+    S.dishes.forEach(function(d){
+      d.ingredients.forEach(function(i){
+        var k=i.name.toLowerCase();
+        if(!S.ingredients.some(function(m){return m.name.toLowerCase()===k}))
+          S.ingredients.push({name:i.name,weight:i.weight||0,shop:i.shop||"",usd:i.usd||0,mxn:i.mxn||0});
+      });
+      d.ingredients=d.ingredients.map(function(i){return {name:i.name,qty:i.qty}});
+    });
+  }
   var DEFAULT_HASH="8da193366e1554c08b2870c50f737b9587c3372b656151c4a96028af26f51334";
-  var SHOPS=["Bauernhof","24/7","General Store 1","General Store 2","General Store 3","General Store 4","General Store 5"];
+  var SHOPS=["Bauernhof","24/7","General Store 1","General Store 2","General Store 3","General Store 4","General Store 5","Rex Diner"];
   var STATIONS={herd:"Herd",mixer:"Mixer",grill:"Grill"};
-  var me=null,view="start",adminTab="users",msg="",editUser=null,editDish=null;
+  var me=null,view="start",adminTab="users",msg="",editUser=null,editDish=null,ingEdit=null;
   try{var n=sessionStorage.getItem("rp_user");if(n)me=S.users.find(function(u){return u.name===n})||null;}catch(e){}
 
   function el(tag,props,kids){var n=document.createElement(tag);
@@ -79,13 +92,14 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     return "<!DOCTYPE html>\n"+c.outerHTML;
   }
   async function save(st){
+    st.users=st.users||S.users;st.dishes=st.dishes||S.dishes;st.ingredients=st.ingredients||S.ingredients;
     if(window.claude&&claude.use){
       try{
         var a=await claude.use("artifact");
         if(a){await a.publish(buildHtml(st));return;}
       }catch(e){}
     }
-    S=st;editUser=null;editDish=null;if(adminTab==="dishform")adminTab="dishes";
+    S=st;editUser=null;editDish=null;ingEdit=null;if(adminTab==="dishform")adminTab="dishes";
     try{
       var blob=new Blob([buildHtml(st)],{type:"text/html"});
       var link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="index.html";
@@ -153,11 +167,16 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
       w.appendChild(el("div",{className:"card warn"},[el("p",{text:"Du nutzt noch das Standardpasswort. Ändere es im Admin-Bereich unter Benutzer."})]));
   }
 
+  function findIng(name){
+    var k=String(name||"").trim().toLowerCase();
+    return S.ingredients.find(function(m){return m.name.toLowerCase()===k})||null;
+  }
   function ingList(d,simple){
     var ul=el("ul",{className:"ing"});
     d.ingredients.forEach(function(i){
       if(simple){ul.appendChild(el("li",{text:i.qty+"× "+i.name}));return;}
-      ul.appendChild(el("li",{text:i.qty+"× "+i.name+(i.weight>0?" ("+kg(i.weight)+")":"")+" – "+(i.shop||"kein Shop")+" – "+money(i.usd,i.mxn)+" pro Stück"}));
+      var m=findIng(i.name)||{};
+      ul.appendChild(el("li",{text:i.qty+"× "+i.name+(m.weight>0?" ("+kg(m.weight)+")":"")+" – "+(m.shop||"kein Shop")+" – "+money(m.usd||0,m.mxn||0)+" pro Stück"}));
     });
     return ul;
   }
@@ -207,9 +226,10 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     var c=counts(),agg={};
     S.dishes.forEach(function(d){var n=c[d.id]||0;if(!n)return;
       d.ingredients.forEach(function(i){
-        var k=i.name.toLowerCase()+"|"+(i.shop||"").toLowerCase();
-        var a=agg[k]||(agg[k]={name:i.name,shop:i.shop||"Kein Shop",qty:0,usd:0,mxn:0,wt:0});
-        a.qty+=i.qty*n;a.usd+=i.qty*n*i.usd;a.mxn+=i.qty*n*i.mxn;a.wt+=i.qty*n*(i.weight||0);
+        var m=findIng(i.name)||{name:i.name,shop:"",usd:0,mxn:0,weight:0};
+        var k=m.name.toLowerCase()+"|"+(m.shop||"").toLowerCase();
+        var a=agg[k]||(agg[k]={name:m.name,shop:m.shop||"Kein Shop",qty:0,usd:0,mxn:0,wt:0});
+        a.qty+=i.qty*n;a.usd+=i.qty*n*(m.usd||0);a.mxn+=i.qty*n*(m.mxn||0);a.wt+=i.qty*n*(m.weight||0);
       });});
     var rows=Object.keys(agg).map(function(k){return agg[k]});
     if(!rows.length){w.appendChild(el("p",{className:"muted",text:"Gib bei den Rezepten eine Anzahl ein, dann erscheint hier deine Liste."}));return;}
@@ -230,10 +250,10 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
 
   function adminView(w){
     var t=el("div",{className:"nav"});
-    [["users","Benutzer"],["dishes","Gerichte"],["dishform","Neues Gericht"]].forEach(function(x){
-      var b=btn(x[1],function(){if(x[0]==="dishform"&&adminTab!=="dishform")editDish=null;adminTab=x[0];msg="";render();});b.setAttribute("aria-pressed",adminTab===x[0]);t.appendChild(b);});
+    [["users","Benutzer"],["dishes","Gerichte"],["dishform","Neues Gericht"],["ingredients","Zutaten"]].forEach(function(x){
+      var b=btn(x[1],function(){if(x[0]==="dishform"&&adminTab!=="dishform")editDish=null;if(x[0]==="ingredients"&&adminTab!=="ingredients")ingEdit=null;adminTab=x[0];msg="";render();});b.setAttribute("aria-pressed",adminTab===x[0]);t.appendChild(b);});
     w.appendChild(t);
-    if(adminTab==="users")usersAdmin(w);else if(adminTab==="dishform")dishForm(w);else dishesAdmin(w);
+    if(adminTab==="users")usersAdmin(w);else if(adminTab==="dishform")dishForm(w);else if(adminTab==="ingredients")ingAdmin(w);else dishesAdmin(w);
     w.appendChild(el("p",{className:"muted",text:"Nach jeder Änderung wird eine neue index.html heruntergeladen. Ersetze damit die Datei bei deinem Hoster."}));
   }
 
@@ -304,33 +324,92 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     var po=el("input",{value:ex&&ex.portions?ex.portions:"",inputMode:"numeric",placeholder:"z. B. 4"});
     var box=el("div",{});
     function addRow(i){
-      i=i||{name:"",qty:1,weight:"",shop:"",usd:0,mxn:0};
-      var r=el("div",{className:"grid"},[
-        el("div",{},[el("label",{text:"Zutat"}),el("input",{value:i.name,className:"i-name"})]),
+      i=i||{name:"",qty:1};
+      var nameIn=el("input",{value:i.name,className:"i-name"});
+      nameIn.setAttribute("list","ing-names");
+      var r=el("div",{className:"grid2"},[
+        el("div",{},[el("label",{text:"Zutat"}),nameIn]),
         el("div",{},[el("label",{text:"Menge"}),el("input",{value:String(i.qty).replace(".",","),className:"i-qty",inputMode:"decimal"})]),
-        el("div",{},[el("label",{text:"Gewicht (kg)"}),el("input",{value:i.weight?String(i.weight).replace(".",","):"",className:"i-weight",inputMode:"decimal"})]),
-        el("div",{},[el("label",{text:"Shop"}),shopSelect(i.shop)]),
-        el("div",{},[el("label",{text:"Dollar"}),el("input",{value:String(i.usd).replace(".",","),className:"i-usd",inputMode:"decimal"})]),
-        el("div",{},[el("label",{text:"₽"}),el("input",{value:String(i.mxn).replace(".",","),className:"i-mxn",inputMode:"decimal"})]),
         btn("Entfernen",function(){r.remove();},"x danger")]);
       box.appendChild(r);
     }
-    if(ex)ex.ingredients.forEach(addRow);else addRow();
+    if(ex)ex.ingredients.forEach(function(i){addRow(i)});else addRow();
+    var err=el("p",{className:"msg",role:"alert"});
+    var dl=el("datalist",{id:"ing-names"},S.ingredients.map(function(m){return el("option",{value:m.name})}));
+    var hint=el("p",{className:"muted",text:S.ingredients.length?"Gib nur den Namen ein. Preis, Gewicht und Shop kommen aus dem Tab „Zutaten“.":"Lege Zutaten zuerst im Tab „Zutaten“ an."});
     var form=el("div",{className:"card"},[el("h3",{text:ex?"Gericht bearbeiten":"Neues Gericht"}),
-      field("Station",st),field("Name des Gerichts",nm),field("Gewicht des fertigen Gerichts (kg)",wt),field("Portionen pro Herstellung",po),field("Anzahl, die man für 1 EP herstellen muss",ep),el("label",{text:"Zutaten (Preis pro Stück)"}),box,
-      el("div",{className:"row"},[btn("Zutat hinzufügen",function(){addRow();})])]);
+      field("Station",st),field("Name des Gerichts",nm),field("Gewicht des fertigen Gerichts (kg)",wt),field("Portionen pro Herstellung",po),field("Anzahl, die man für 1 EP herstellen muss",ep),el("label",{text:"Zutaten"}),hint,box,dl,
+      el("div",{className:"row"},[btn("Zutat hinzufügen",function(){addRow();})]),err]);
     var row=el("div",{className:"row"},[btn("Speichern",function(){
       var name=nm.value.trim();
-      if(!name){msg="Bitte gib einen Namen ein.";return render();}
-      var ing=[].map.call(box.children,function(r){var q=function(c){return r.querySelector("."+c).value};
-        return {name:q("i-name").trim(),qty:num(q("i-qty"))||1,weight:num(q("i-weight")),shop:q("i-shop").trim(),usd:num(q("i-usd")),mxn:num(q("i-mxn"))};
-      }).filter(function(i){return i.name});
+      if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
+      var unknown=[],ing=[];
+      [].forEach.call(box.children,function(r){
+        var q=function(c){return r.querySelector("."+c).value};
+        var nme=q("i-name").trim();if(!nme)return;
+        var m=findIng(nme);
+        if(!m){unknown.push(nme);return;}
+        ing.push({name:m.name,qty:num(q("i-qty"))||1});
+      });
+      if(unknown.length){err.textContent="Diese Zutaten gibt es nicht im Tab „Zutaten“: "+unknown.join(", ")+".";return;}
       var rec={id:ex?ex.id:"d"+Date.now(),station:st.value,name:name,epPer:Math.floor(num(ep.value)),weight:num(wt.value),portions:Math.floor(num(po.value)),ingredients:ing};
       var ds=ex?S.dishes.map(function(d){return d.id===ex.id?rec:d}):S.dishes.concat([rec]);
-      save({users:S.users,dishes:ds});
+      save({dishes:ds});
     },"primary")]);
     if(ex)row.appendChild(btn("Abbrechen",function(){editDish=null;adminTab="dishes";render();}));
     form.appendChild(row);w.appendChild(form);
+  }
+
+  function ingAdmin(w){
+    var ex=S.ingredients.find(function(m){return m.name===ingEdit});
+    var fv=function(v){return v?String(v).replace(".",","):"";};
+    var nm=el("input",{value:ex?ex.name:"",maxLength:60});
+    var wt=el("input",{value:ex?fv(ex.weight):"",inputMode:"decimal",placeholder:"z. B. 0,2"});
+    var sh=shopSelect(ex?ex.shop:"");
+    var us=el("input",{value:ex?fv(ex.usd):"",inputMode:"decimal"});
+    var mx=el("input",{value:ex?fv(ex.mxn):"",inputMode:"decimal"});
+    var err=el("p",{className:"msg",role:"alert"});
+    var row=el("div",{className:"row"},[btn("Speichern",function(){
+      var name=nm.value.trim();
+      if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
+      if(S.ingredients.some(function(m){return m!==ex&&m.name.toLowerCase()===name.toLowerCase()})){err.textContent="Diese Zutat gibt es schon.";return;}
+      var rec={name:name,weight:num(wt.value),shop:sh.value,usd:num(us.value),mxn:num(mx.value)};
+      var ings=ex?S.ingredients.map(function(m){return m===ex?rec:m}):S.ingredients.concat([rec]);
+      var ds=S.dishes;
+      if(ex&&ex.name!==name)ds=S.dishes.map(function(d){
+        return Object.assign({},d,{ingredients:d.ingredients.map(function(i){return i.name===ex.name?{name:name,qty:i.qty}:i})});
+      });
+      save({ingredients:ings,dishes:ds});
+    },"primary")]);
+    if(ex)row.appendChild(btn("Abbrechen",function(){ingEdit=null;render();}));
+    w.appendChild(el("div",{className:"card"},[el("h3",{text:ex?"Zutat bearbeiten":"Neue Zutat"}),
+      field("Name der Zutat",nm),field("Gewicht pro Stück (kg)",wt),field("Shop",sh),
+      field("Preis in Dollar (pro Stück)",us),field("Preis in ₽ (pro Stück)",mx),row,err]));
+
+    var listErr=el("p",{className:"msg",role:"alert"});
+    var box=el("div");
+    function fill(){
+      box.textContent="";listErr.textContent="";
+      var all=S.ingredients.slice().sort(function(a,b){return a.name.localeCompare(b.name,"de")});
+      var t=(searchTerm.ing||"").trim().toLowerCase();
+      var ms=all.filter(function(m){return !t||m.name.toLowerCase().indexOf(t)>-1||(m.shop||"").toLowerCase().indexOf(t)>-1});
+      if(!all.length)box.appendChild(el("p",{className:"muted",text:"Noch keine Zutaten angelegt."}));
+      else if(!ms.length)box.appendChild(el("p",{className:"muted",text:"Keine Zutat gefunden."}));
+      ms.forEach(function(m){
+        var used=S.dishes.filter(function(d){return d.ingredients.some(function(i){return i.name===m.name})});
+        box.appendChild(el("div",{className:"card"},[el("h3",{text:m.name}),
+          el("p",{className:"muted",text:(m.shop||"Kein Shop")+" · "+(m.weight>0?kg(m.weight):"kein Gewicht")+" · "+money(m.usd||0,m.mxn||0)+" pro Stück"}),
+          el("div",{className:"row"},[btn("Bearbeiten",function(){ingEdit=m.name;render();window.scrollTo(0,0);}),
+            btn("Löschen",function(){
+              if(used.length){listErr.textContent="„"+m.name+"“ wird noch in Gerichten verwendet: "+used.map(function(d){return d.name}).join(", ")+".";return;}
+              if(!confirm("Zutat „"+m.name+"“ löschen?"))return;
+              save({ingredients:S.ingredients.filter(function(x){return x!==m})});
+            },"danger")])]));
+      });
+    }
+    w.appendChild(el("h2",{text:"Alle Zutaten",style:"margin-top:28px"}));
+    if(S.ingredients.length)w.appendChild(searchBox("ing",fill));
+    w.appendChild(listErr);w.appendChild(box);fill();
   }
 
   render();
