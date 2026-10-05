@@ -42,6 +42,8 @@ td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertic
 .warn{border-left:5px solid var(--danger)}
 .login{max-width:380px;margin:64px auto}
 input[type=search]{margin:10px 0}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
 .grid2{display:grid;grid-template-columns:2fr 1fr auto;gap:6px;align-items:end;margin-top:8px}
 @media(max-width:620px){.grid2{grid-template-columns:1fr 1fr}.grid2 .x{grid-column:span 2}}
 ul.ing{margin:6px 0 0;padding-left:1.2em}
@@ -53,6 +55,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
 <script>
 (function(){
   var S=JSON.parse(document.getElementById("state").textContent);
+  if(!S.stockDishes)S.stockDishes=[];
   if(!S.ingredients){
     S.ingredients=[];
     S.dishes.forEach(function(d){
@@ -92,7 +95,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     return "<!DOCTYPE html>\n"+c.outerHTML;
   }
   async function save(st){
-    st.users=st.users||S.users;st.dishes=st.dishes||S.dishes;st.ingredients=st.ingredients||S.ingredients;
+    st.users=st.users||S.users;st.dishes=st.dishes||S.dishes;st.ingredients=st.ingredients||S.ingredients;st.stockDishes=st.stockDishes||S.stockDishes;
     if(window.claude&&claude.use){
       try{
         var a=await claude.use("artifact");
@@ -123,7 +126,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     ])]);
     root.appendChild(top);
     var w=el("div",{className:"wrap"});
-    var tabs=[["start","Start"],["herd","Herd"],["mixer","Mixer"],["grill","Grill"],["liste","Einkaufsliste"]];
+    var tabs=[["start","Start"],["herd","Herd"],["mixer","Mixer"],["grill","Grill"],["liste","Einkaufsliste"],["bestand","Bestandsliste"]];
     if(me.role==="admin")tabs.push(["admin","Admin"]);
     var nav=el("div",{className:"nav"});
     tabs.forEach(function(t){var b=btn(t[1],function(){view=t[0];msg="";render();});b.setAttribute("aria-pressed",view===t[0]);nav.appendChild(b);});
@@ -131,6 +134,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     if(view==="start")startView(w);
     else if(STATIONS[view])stationView(w,view);
     else if(view==="liste")listView(w);
+    else if(view==="bestand")stockView(w);
     else if(view==="admin"&&me.role==="admin")adminView(w);
     if(msg)w.appendChild(el("p",{className:"msg",role:"alert",text:msg}));
     w.appendChild(el("div",{style:"height:48px"}));
@@ -308,7 +312,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
           el("p",{className:"muted",text:STATIONS[d.station]}),ingList(d),epInfo(d),
           el("div",{className:"row"},[btn("Bearbeiten",function(){editDish=d.id;adminTab="dishform";render();}),
             btn("Löschen",function(){if(!confirm("„"+d.name+"“ löschen?"))return;
-              save({users:S.users,dishes:S.dishes.filter(function(x){return x.id!==d.id})});},"danger")])]));
+              save({users:S.users,dishes:S.dishes.filter(function(x){return x.id!==d.id}),stockDishes:S.stockDishes.filter(function(x){return x.id!==d.id})});},"danger")])]));
       });
     }
     if(S.dishes.length)w.appendChild(searchBox("admin",afill));
@@ -360,6 +364,77 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     form.appendChild(row);w.appendChild(form);
   }
 
+  function stockView(w){
+    w.appendChild(el("h2",{text:"Bestandsliste"}));
+    var isA=me.role==="admin",items=S.ingredients,pending={},dirty=false;
+    var dl=S.stockDishes.map(function(x){return {id:x.id,count:x.count||0}});
+    var info=el("p",{className:"muted",role:"status"});
+    var dbox=el("div",{className:"card"}),ibox=el("div",{className:"card"});
+    function byName(a,b){return a.name.localeCompare(b.name,"de")}
+    function dishById(id){return S.dishes.find(function(d){return d.id===id})}
+    function term(){return (searchTerm.stock||"").trim().toLowerCase();}
+    function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:(m.stock||0);}
+    function countInput(label,val,fn){
+      var i=el("input",{type:"number",min:"0",step:"1",value:val,className:"qty"});
+      i.setAttribute("aria-label",label);
+      i.oninput=function(){fn(Math.max(0,Math.floor(num(i.value))));dirty=true;info.textContent="";};
+      return i;
+    }
+    function fillD(){
+      dbox.textContent="";
+      dbox.appendChild(el("h3",{text:"Gerichte"}));
+      dl=dl.filter(function(x){return dishById(x.id)});
+      if(isA){
+        var avail=S.dishes.filter(function(d){return !dl.some(function(x){return x.id===d.id})}).sort(byName);
+        if(avail.length){
+          var sel=el("select",{style:"flex:1 1 180px;width:auto"},avail.map(function(d){return el("option",{value:d.id,text:d.name+" ("+STATIONS[d.station]+")"})}));
+          sel.setAttribute("aria-label","Gericht auswählen");
+          dbox.appendChild(el("div",{className:"row"},[sel,btn("Hinzufügen",function(){
+            dl.push({id:sel.value,count:0});dirty=true;info.textContent="";fillD();
+          })]));
+        }else if(!S.dishes.length)dbox.appendChild(el("p",{className:"muted",text:"Es gibt noch keine Gerichte. Lege sie im Admin-Bereich an."}));
+      }
+      var t=term();
+      var rows=dl.map(function(x){return {x:x,d:dishById(x.id)}}).filter(function(o){return !t||o.d.name.toLowerCase().indexOf(t)>-1}).sort(function(a,b){return byName(a.d,b.d)});
+      if(!dl.length)dbox.appendChild(el("p",{className:"muted",text:"Noch keine Gerichte in der Bestandsliste."+(isA?" Füge oben eines hinzu.":"")}));
+      else if(!rows.length)dbox.appendChild(el("p",{className:"muted",text:"Kein Gericht gefunden."}));
+      rows.forEach(function(o){
+        var right;
+        if(isA){
+          var inp=countInput("Bestand "+o.d.name,o.x.count,function(v){o.x.count=v;});
+          var rm=btn("Löschen",function(){dl=dl.filter(function(y){return y!==o.x});dirty=true;info.textContent="";fillD();},"danger");
+          right=el("span",{className:"row",style:"margin:0"},[inp,rm]);
+        }else right=el("strong",{text:String(o.x.count)});
+        dbox.appendChild(el("div",{className:"srow"},[el("span",{text:o.d.name}),right]));
+      });
+    }
+    function fillI(){
+      ibox.textContent="";
+      ibox.appendChild(el("h3",{text:"Zutaten"}));
+      if(!items.length){ibox.appendChild(el("p",{className:"muted",text:"Noch keine Zutaten vorhanden. Der Admin legt sie im Tab „Zutaten“ an."}));return;}
+      var t=term();
+      var ms=items.slice().sort(byName).filter(function(m){return !t||m.name.toLowerCase().indexOf(t)>-1});
+      if(!ms.length){ibox.appendChild(el("p",{className:"muted",text:"Keine Zutat gefunden."}));return;}
+      ms.forEach(function(m){
+        var right=isA?countInput("Bestand "+m.name,cur(m),function(v){pending[m.name]=v;}):el("strong",{text:String(m.stock||0)});
+        ibox.appendChild(el("div",{className:"srow"},[el("span",{text:m.name}),right]));
+      });
+    }
+    function fill(){fillD();fillI();}
+    if(items.length||S.dishes.length||dl.length)w.appendChild(searchBox("stock",fill));
+    if(isA){
+      w.appendChild(el("div",{className:"row"},[btn("Bestand speichern",function(){
+        if(!dirty){info.textContent="Keine Änderungen.";return;}
+        save({
+          ingredients:S.ingredients.map(function(m){return pending.hasOwnProperty(m.name)?Object.assign({},m,{stock:pending[m.name]}):m;}),
+          stockDishes:dl
+        });
+      },"primary")]));
+      w.appendChild(info);
+    }
+    w.appendChild(dbox);w.appendChild(ibox);fill();
+  }
+
   function ingAdmin(w){
     var ex=S.ingredients.find(function(m){return m.name===ingEdit});
     var fv=function(v){return v?String(v).replace(".",","):"";};
@@ -373,7 +448,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
       var name=nm.value.trim();
       if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
       if(S.ingredients.some(function(m){return m!==ex&&m.name.toLowerCase()===name.toLowerCase()})){err.textContent="Diese Zutat gibt es schon.";return;}
-      var rec={name:name,weight:num(wt.value),shop:sh.value,usd:num(us.value),mxn:num(mx.value)};
+      var rec={name:name,weight:num(wt.value),shop:sh.value,usd:num(us.value),mxn:num(mx.value),stock:ex?(ex.stock||0):0};
       var ings=ex?S.ingredients.map(function(m){return m===ex?rec:m}):S.ingredients.concat([rec]);
       var ds=S.dishes;
       if(ex&&ex.name!==name)ds=S.dishes.map(function(d){
