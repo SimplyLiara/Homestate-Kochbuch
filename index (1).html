@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de" style="color-scheme: light;"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mein Rp</title>
+<style>
+:root{
+  --bg:#F4ECDC;--ink:#2E2740;--muted:#6B6280;--card:#FBF6EA;--line:#DCCFB4;--accent:#B79CE0;--ui:#8E6FC4;--ui-ink:#FFFFFF;--hero:#8E6FC4;--hero-ink:#FFFFFF;--danger:#A8201A;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root[data-theme="dark"]{--bg:#1D1A28;--ink:#EDE8F5;--muted:#A9A2BD;--card:#272336;--line:#3B3550;--accent:#9B80D0;--ui:#B79CE0;--ui-ink:#1B1230;--hero:#3A2F58;--hero-ink:#F1EBFA;--danger:#FF8A80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.15;margin:0}
+h2{font-size:1.8rem;margin-bottom:12px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px}
+.top{background:var(--hero);color:var(--hero-ink);padding:14px 0}
+.top .wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.top strong{font-family:Georgia,serif;font-size:1.3rem;margin-right:auto}
+.nav{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+button,.btn{font:inherit;cursor:pointer;border-radius:999px;border:1px solid var(--accent);background:var(--card);color:var(--ink);padding:8px 16px}
+.top button{background:transparent;color:var(--hero-ink);border-color:rgba(255,255,255,.6)}
+button[aria-pressed="true"],.primary{background:var(--ui);border-color:var(--ui);color:var(--ui-ink);font-weight:600}
+.danger{color:var(--danger)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.card h3{font-size:1.3rem;margin-bottom:6px}
+.muted{color:var(--muted)}
+label{display:block;margin:12px 0 4px;font-weight:600;font-size:.92rem}
+input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px}
+.grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.4fr 1fr 1fr auto;gap:6px;align-items:end;margin-top:8px}
+.grid input{padding:7px}
+@media(max-width:620px){.grid{grid-template-columns:1fr 1fr}.grid .x{grid-column:span 2}}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.qty{width:90px}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+.msg{margin-top:10px;color:var(--danger)}
+.ok{color:var(--muted)}
+.warn{border-left:5px solid var(--danger)}
+.login{max-width:380px;margin:64px auto}
+input[type=search]{margin:10px 0}
+ul.ing{margin:6px 0 0;padding-left:1.2em}
+</style>
+</head>
+<body>
+<script id="state" type="application/json">{"users":[{"name":"admin","hash":"8da193366e1554c08b2870c50f737b9587c3372b656151c4a96028af26f51334","role":"admin","charName":"Lia Blake","birth":"1997-12-27"}],"dishes":[{"id":"d1791197808801","station":"herd","name":"Eier-Sandwich","epPer":0,"weight":0.2,"portions":0,"ingredients":[{"name":"Ei","qty":1,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Eisbergsalat","qty":1,"weight":0.5,"shop":"General Store 1","usd":0.65,"mxn":0},{"name":"Toast","qty":1,"weight":0.5,"shop":"24/7","usd":2,"mxn":0}]},{"id":"d1791198914528","station":"herd","name":"Rührei","epPer":9,"weight":0.2,"portions":1,"ingredients":[{"name":"Ei","qty":3,"weight":0.1,"shop":"Bauernhof","usd":0.5,"mxn":0},{"name":"Milch","qty":1,"weight":0.5,"shop":"Bauernhof","usd":1.85,"mxn":0},{"name":"Bündel Schnittlauch","qty":1,"weight":0.1,"shop":"General Store 3","usd":0.4,"mxn":0}]},{"id":"d1791202133863","station":"herd","name":"TK Pizza","epPer":0,"weight":0,"portions":0,"ingredients":[{"name":"TK Pizza (gefroren)","qty":1,"weight":0,"shop":"","usd":0,"mxn":0}]},{"id":"d1791202169678","station":"herd","name":"TK Lasagne","epPer":0,"weight":0,"portions":0,"ingredients":[{"name":"TK Lasagne (gefroren)","qty":1,"weight":0,"shop":"","usd":0,"mxn":0}]}]}</script>
+<div id="app"></div>
+<script>
+(function(){
+  var S=JSON.parse(document.getElementById("state").textContent);
+  var DEFAULT_HASH="8da193366e1554c08b2870c50f737b9587c3372b656151c4a96028af26f51334";
+  var SHOPS=["Bauernhof","24/7","General Store 1","General Store 2","General Store 3","General Store 4","General Store 5"];
+  var STATIONS={herd:"Herd",mixer:"Mixer",grill:"Grill"};
+  var me=null,view="start",adminTab="users",msg="",editUser=null,editDish=null;
+  try{var n=sessionStorage.getItem("rp_user");if(n)me=S.users.find(function(u){return u.name===n})||null;}catch(e){}
+
+  function el(tag,props,kids){var n=document.createElement(tag);
+    for(var k in (props||{})){if(k==="text")n.textContent=props[k];else n[k]=props[k];}
+    (kids||[]).forEach(function(c){n.appendChild(typeof c==="string"?document.createTextNode(c):c)});return n;}
+  function btn(t,fn,cls){var b=el("button",{text:t,type:"button",className:cls||""});b.onclick=fn;return b;}
+  function field(lbl,input){return el("div",{},[el("label",{text:lbl}),input]);}
+  function num(v){v=parseFloat(String(v).replace(",","."));return isFinite(v)&&v>=0?v:0;}
+  function money(usd,mxn){return "$"+usd.toFixed(2)+" / "+mxn.toFixed(2)+" ₽";}
+  function kg(v){return String(Math.round(v*1000)/1000).replace(".",",")+" kg";}
+  function dateDe(s){var p=(s||"").split("-");return p.length===3?p[2]+"."+p[1]+"."+p[0]:(s||"–");}
+  async function hash(u,p){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(u.toLowerCase()+":"+p));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("");}
+
+  function counts(){try{return JSON.parse(localStorage.getItem("rp_c_"+me.name)||"{}")}catch(e){return {}}}
+  function setCount(id,v){var c=counts();c[id]=v;try{localStorage.setItem("rp_c_"+me.name,JSON.stringify(c))}catch(e){}}
+
+  function buildHtml(st){
+    var c=document.documentElement.cloneNode(true);
+    c.removeAttribute("data-theme");c.querySelector("#app").textContent="";
+    c.querySelector("#state").textContent=JSON.stringify(st).replace(/</g,"\\u003c");
+    return "<!DOCTYPE html>\n"+c.outerHTML;
+  }
+  async function save(st){
+    if(window.claude&&claude.use){
+      try{
+        var a=await claude.use("artifact");
+        if(a){await a.publish(buildHtml(st));return;}
+      }catch(e){}
+    }
+    S=st;editUser=null;editDish=null;if(adminTab==="dishform")adminTab="dishes";
+    try{
+      var blob=new Blob([buildHtml(st)],{type:"text/html"});
+      var link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download="index.html";
+      document.body.appendChild(link);link.click();link.remove();
+      msg="Änderung übernommen. Die neue Datei index.html wurde heruntergeladen. Ersetze damit die Datei bei deinem Hoster, damit alle Benutzer die Änderung sehen.";
+    }catch(e){msg="Speichern hat nicht geklappt. Bitte versuche es noch einmal.";}
+    render();
+  }
+  function theme(){var t="light";try{t=(me&&localStorage.getItem("rp_theme_"+me.name))||"light";}catch(e){}return t;}
+  function applyTheme(){document.documentElement.setAttribute("data-theme",me?theme():"light");}
+  function toggleTheme(){var t=theme()==="dark"?"light":"dark";try{localStorage.setItem("rp_theme_"+me.name,t);}catch(e){}render();}
+  var root=document.getElementById("app");
+  function render(){
+    root.textContent="";applyTheme();
+    if(!me){return loginView();}
+    var top=el("div",{className:"top"},[el("div",{className:"wrap"},[
+      el("strong",{text:"Mein Rp"}),
+      el("span",{text:me.name}),
+      btn(theme()==="dark"?"Hell":"Dunkel",toggleTheme),
+      btn("Abmelden",function(){me=null;try{sessionStorage.removeItem("rp_user")}catch(e){}view="start";msg="";render();})
+    ])]);
+    root.appendChild(top);
+    var w=el("div",{className:"wrap"});
+    var tabs=[["start","Start"],["herd","Herd"],["mixer","Mixer"],["grill","Grill"],["liste","Einkaufsliste"]];
+    if(me.role==="admin")tabs.push(["admin","Admin"]);
+    var nav=el("div",{className:"nav"});
+    tabs.forEach(function(t){var b=btn(t[1],function(){view=t[0];msg="";render();});b.setAttribute("aria-pressed",view===t[0]);nav.appendChild(b);});
+    w.appendChild(nav);
+    if(view==="start")startView(w);
+    else if(STATIONS[view])stationView(w,view);
+    else if(view==="liste")listView(w);
+    else if(view==="admin"&&me.role==="admin")adminView(w);
+    if(msg)w.appendChild(el("p",{className:"msg",role:"alert",text:msg}));
+    w.appendChild(el("div",{style:"height:48px"}));
+    root.appendChild(w);
+  }
+
+  function loginView(){
+    var u=el("input",{autocomplete:"username"}),p=el("input",{type:"password",autocomplete:"current-password"});
+    var err=el("p",{className:"msg",role:"alert"});
+    async function go(){
+      var name=u.value.trim();
+      var h=await hash(name,p.value);
+      var f=S.users.find(function(x){return x.name.toLowerCase()===name.toLowerCase()&&x.hash===h});
+      if(!f){err.textContent="Benutzername oder Passwort falsch.";return;}
+      me=f;try{sessionStorage.setItem("rp_user",f.name)}catch(e){}
+      view="start";render();
+    }
+    p.onkeydown=function(e){if(e.key==="Enter")go();};
+    root.appendChild(el("div",{className:"login wrap"},[
+      el("h2",{text:"Anmelden"}),
+      field("Benutzername",u),field("Passwort",p),
+      el("div",{className:"row"},[btn("Anmelden",go,"primary")]),err
+    ]));
+  }
+
+  function startView(w){
+    w.appendChild(el("h2",{text:"Willkommen, "+(me.charName||me.name)+"!"}));
+    w.appendChild(el("div",{className:"card"},[
+      el("h3",{text:"Dein Charakter"}),
+      el("p",{text:"Name: "+(me.charName||"noch nicht eingetragen")}),
+      el("p",{text:"Geburtsdatum: "+dateDe(me.birth)})
+    ]));
+    if(me.role==="admin"&&me.hash===DEFAULT_HASH)
+      w.appendChild(el("div",{className:"card warn"},[el("p",{text:"Du nutzt noch das Standardpasswort. Ändere es im Admin-Bereich unter Benutzer."})]));
+  }
+
+  function ingList(d,simple){
+    var ul=el("ul",{className:"ing"});
+    d.ingredients.forEach(function(i){
+      if(simple){ul.appendChild(el("li",{text:i.qty+"× "+i.name}));return;}
+      ul.appendChild(el("li",{text:i.qty+"× "+i.name+(i.weight>0?" ("+kg(i.weight)+")":"")+" – "+(i.shop||"kein Shop")+" – "+money(i.usd,i.mxn)+" pro Stück"}));
+    });
+    return ul;
+  }
+  function epInfo(d){
+    var t=[];
+    if(d.weight>0)t.push("Fertiges Gericht: "+kg(d.weight));
+    if(d.portions>0)t.push("Ergibt "+d.portions+(d.portions===1?" Portion":" Portionen"));
+    if(d.epPer>0)t.push("Für 1 EP herstellen: "+d.epPer+"×");
+    return t.length?el("p",{className:"muted",text:t.join(" · ")}):el("span");
+  }
+  var searchTerm={};
+  function matches(d,t){
+    t=(t||"").trim().toLowerCase();if(!t)return true;
+    return d.name.toLowerCase().indexOf(t)>-1||d.ingredients.some(function(i){return i.name.toLowerCase().indexOf(t)>-1});
+  }
+  function searchBox(key,fill){
+    var inp=el("input",{type:"search",placeholder:"Gericht oder Zutat suchen",value:searchTerm[key]||""});
+    inp.setAttribute("aria-label","Gerichte suchen");
+    inp.oninput=function(){searchTerm[key]=inp.value;fill();};
+    return inp;
+  }
+  function stationView(w,st){
+    w.appendChild(el("h2",{text:"Rezepte – "+STATIONS[st]}));
+    var all=S.dishes.filter(function(d){return d.station===st});
+    var box=el("div");
+    function fill(){
+      box.textContent="";
+      if(!all.length){box.appendChild(el("p",{className:"muted",text:"Hier gibt es noch keine Gerichte."}));return;}
+      var ds=all.filter(function(d){return matches(d,searchTerm[st])});
+      if(!ds.length){box.appendChild(el("p",{className:"muted",text:"Kein Gericht gefunden."}));return;}
+      var c=counts();
+      ds.forEach(function(d){
+        var q=el("input",{type:"number",min:"0",step:"1",value:c[d.id]||0,className:"qty"});
+        q.onchange=function(){setCount(d.id,Math.max(0,Math.floor(num(q.value))));};
+        box.appendChild(el("div",{className:"card"},[
+          el("h3",{text:d.name}),ingList(d,true),epInfo(d),
+          el("div",{className:"row"},[el("label",{text:"Anzahl",style:"margin:0"}),q])
+        ]));
+      });
+    }
+    if(all.length)w.appendChild(searchBox(st,fill));
+    w.appendChild(box);fill();
+  }
+
+  function listView(w){
+    w.appendChild(el("h2",{text:"Einkaufsliste"}));
+    var c=counts(),agg={};
+    S.dishes.forEach(function(d){var n=c[d.id]||0;if(!n)return;
+      d.ingredients.forEach(function(i){
+        var k=i.name.toLowerCase()+"|"+(i.shop||"").toLowerCase();
+        var a=agg[k]||(agg[k]={name:i.name,shop:i.shop||"Kein Shop",qty:0,usd:0,mxn:0,wt:0});
+        a.qty+=i.qty*n;a.usd+=i.qty*n*i.usd;a.mxn+=i.qty*n*i.mxn;a.wt+=i.qty*n*(i.weight||0);
+      });});
+    var rows=Object.keys(agg).map(function(k){return agg[k]});
+    if(!rows.length){w.appendChild(el("p",{className:"muted",text:"Gib bei den Rezepten eine Anzahl ein, dann erscheint hier deine Liste."}));return;}
+    var shops={};rows.forEach(function(r){(shops[r.shop]=shops[r.shop]||[]).push(r)});
+    var gu=0,gm=0,gw=0;
+    Object.keys(shops).sort().forEach(function(s){
+      var t=el("table",{},[el("tr",{},["Zutat","Menge","Einzeln","Gesamt"].map(function(h){return el("th",{text:h})}))]);
+      shops[s].forEach(function(r){gu+=r.usd;gm+=r.mxn;gw+=r.wt;
+        t.appendChild(el("tr",{},[el("td",{text:r.name}),el("td",{text:r.qty+"×"}),
+          el("td",{},[el("div",{text:money(r.usd/r.qty,r.mxn/r.qty)}),el("div",{className:"muted",text:kg(r.wt/r.qty)})]),
+          el("td",{},[el("div",{text:money(r.usd,r.mxn)}),el("div",{className:"muted",text:kg(r.wt)})])]));});
+      w.appendChild(el("div",{className:"card"},[el("h3",{text:s}),el("div",{className:"scroll"},[t])]));
+    });
+    w.appendChild(el("div",{className:"card"},[el("h3",{text:"Insgesamt"}),
+      el("p",{},[el("strong",{text:"Gesamtpreis: "+money(gu,gm)})]),
+      el("p",{},[el("strong",{text:"Gesamtgewicht: "+kg(gw)})])]));
+  }
+
+  function adminView(w){
+    var t=el("div",{className:"nav"});
+    [["users","Benutzer"],["dishes","Gerichte"],["dishform","Neues Gericht"]].forEach(function(x){
+      var b=btn(x[1],function(){if(x[0]==="dishform"&&adminTab!=="dishform")editDish=null;adminTab=x[0];msg="";render();});b.setAttribute("aria-pressed",adminTab===x[0]);t.appendChild(b);});
+    w.appendChild(t);
+    if(adminTab==="users")usersAdmin(w);else if(adminTab==="dishform")dishForm(w);else dishesAdmin(w);
+    w.appendChild(el("p",{className:"muted",text:"Nach jeder Änderung wird eine neue index.html heruntergeladen. Ersetze damit die Datei bei deinem Hoster."}));
+  }
+
+  function usersAdmin(w){
+    w.appendChild(el("h2",{text:"Benutzer"}));
+    S.users.forEach(function(u){
+      var r=el("div",{className:"row"},[btn("Bearbeiten",function(){editUser=u.name;render();})]);
+      if(u.name!=="admin")r.appendChild(btn("Löschen",function(){
+        if(!confirm("Benutzer „"+u.name+"“ löschen?"))return;
+        save({users:S.users.filter(function(x){return x.name!==u.name}),dishes:S.dishes});
+      },"danger"));
+      w.appendChild(el("div",{className:"card"},[el("h3",{text:u.name}),
+        el("p",{className:"muted",text:"Charakter: "+(u.charName||"–")+" · Geboren: "+dateDe(u.birth)}),r]));
+    });
+    var ex=S.users.find(function(u){return u.name===editUser});
+    var nm=el("input",{value:ex?ex.name:"",disabled:!!ex,maxLength:30}),pw=el("input",{type:"password",autocomplete:"new-password"}),
+        cn=el("input",{value:ex?ex.charName:"",maxLength:60}),bd=el("input",{type:"date",value:ex?ex.birth:""});
+    var form=el("div",{className:"card"},[el("h3",{text:ex?"Benutzer bearbeiten":"Neuer Benutzer"}),
+      field("Benutzername",nm),field(ex?"Neues Passwort (leer lassen = unverändert)":"Passwort",pw),
+      field("Name des Rp-Charakters",cn),field("Geburtsdatum",bd)]);
+    var row=el("div",{className:"row"},[btn("Speichern",async function(){
+      var name=nm.value.trim();
+      if(!name){msg="Bitte gib einen Benutzernamen ein.";return render();}
+      if(!ex&&S.users.some(function(u){return u.name.toLowerCase()===name.toLowerCase()})){msg="Diesen Benutzernamen gibt es schon.";return render();}
+      if(!ex&&!pw.value){msg="Bitte vergib ein Passwort.";return render();}
+      var rec=ex||{name:name,role:"user"};
+      if(pw.value)rec.hash=await hash(name,pw.value);
+      rec.charName=cn.value.trim();rec.birth=bd.value;
+      var users=ex?S.users.map(function(u){return u.name===ex.name?rec:u}):S.users.concat([rec]);
+      save({users:users,dishes:S.dishes});
+    },"primary")]);
+    if(ex)row.appendChild(btn("Abbrechen",function(){editUser=null;render();}));
+    form.appendChild(row);w.appendChild(form);
+  }
+
+  function shopSelect(val){
+    var opts=[el("option",{value:"",text:"Shop wählen"})];
+    var list=SHOPS.slice();
+    if(val&&list.indexOf(val)<0)list.push(val);
+    list.forEach(function(x){opts.push(el("option",{value:x,text:x,selected:x===val}));});
+    return el("select",{className:"i-shop"},opts);
+  }
+  function dishesAdmin(w){
+    w.appendChild(el("h2",{text:"Gerichte"}));
+    var abox=el("div");
+    function afill(){
+      abox.textContent="";
+      var ds=S.dishes.filter(function(d){return matches(d,searchTerm.admin)});
+      if(S.dishes.length&&!ds.length)abox.appendChild(el("p",{className:"muted",text:"Kein Gericht gefunden."}));
+      ds.forEach(function(d){
+        abox.appendChild(el("div",{className:"card"},[el("h3",{text:d.name}),
+          el("p",{className:"muted",text:STATIONS[d.station]}),ingList(d),epInfo(d),
+          el("div",{className:"row"},[btn("Bearbeiten",function(){editDish=d.id;adminTab="dishform";render();}),
+            btn("Löschen",function(){if(!confirm("„"+d.name+"“ löschen?"))return;
+              save({users:S.users,dishes:S.dishes.filter(function(x){return x.id!==d.id})});},"danger")])]));
+      });
+    }
+    if(S.dishes.length)w.appendChild(searchBox("admin",afill));
+    w.appendChild(abox);afill();
+  }
+
+  function dishForm(w){
+    var ex=S.dishes.find(function(d){return d.id===editDish});
+    var st=el("select",{},Object.keys(STATIONS).map(function(k){return el("option",{value:k,text:STATIONS[k],selected:ex&&ex.station===k})}));
+    var nm=el("input",{value:ex?ex.name:"",maxLength:80});
+    var ep=el("input",{value:ex&&ex.epPer?ex.epPer:"",inputMode:"numeric",placeholder:"z. B. 10"});
+    var wt=el("input",{value:ex&&ex.weight?String(ex.weight).replace(".",","):"",inputMode:"decimal",placeholder:"z. B. 0,35"});
+    var po=el("input",{value:ex&&ex.portions?ex.portions:"",inputMode:"numeric",placeholder:"z. B. 4"});
+    var box=el("div",{});
+    function addRow(i){
+      i=i||{name:"",qty:1,weight:"",shop:"",usd:0,mxn:0};
+      var r=el("div",{className:"grid"},[
+        el("div",{},[el("label",{text:"Zutat"}),el("input",{value:i.name,className:"i-name"})]),
+        el("div",{},[el("label",{text:"Menge"}),el("input",{value:String(i.qty).replace(".",","),className:"i-qty",inputMode:"decimal"})]),
+        el("div",{},[el("label",{text:"Gewicht (kg)"}),el("input",{value:i.weight?String(i.weight).replace(".",","):"",className:"i-weight",inputMode:"decimal"})]),
+        el("div",{},[el("label",{text:"Shop"}),shopSelect(i.shop)]),
+        el("div",{},[el("label",{text:"Dollar"}),el("input",{value:String(i.usd).replace(".",","),className:"i-usd",inputMode:"decimal"})]),
+        el("div",{},[el("label",{text:"₽"}),el("input",{value:String(i.mxn).replace(".",","),className:"i-mxn",inputMode:"decimal"})]),
+        btn("Entfernen",function(){r.remove();},"x danger")]);
+      box.appendChild(r);
+    }
+    if(ex)ex.ingredients.forEach(addRow);else addRow();
+    var form=el("div",{className:"card"},[el("h3",{text:ex?"Gericht bearbeiten":"Neues Gericht"}),
+      field("Station",st),field("Name des Gerichts",nm),field("Gewicht des fertigen Gerichts (kg)",wt),field("Portionen pro Herstellung",po),field("Anzahl, die man für 1 EP herstellen muss",ep),el("label",{text:"Zutaten (Preis pro Stück)"}),box,
+      el("div",{className:"row"},[btn("Zutat hinzufügen",function(){addRow();})])]);
+    var row=el("div",{className:"row"},[btn("Speichern",function(){
+      var name=nm.value.trim();
+      if(!name){msg="Bitte gib einen Namen ein.";return render();}
+      var ing=[].map.call(box.children,function(r){var q=function(c){return r.querySelector("."+c).value};
+        return {name:q("i-name").trim(),qty:num(q("i-qty"))||1,weight:num(q("i-weight")),shop:q("i-shop").trim(),usd:num(q("i-usd")),mxn:num(q("i-mxn"))};
+      }).filter(function(i){return i.name});
+      var rec={id:ex?ex.id:"d"+Date.now(),station:st.value,name:name,epPer:Math.floor(num(ep.value)),weight:num(wt.value),portions:Math.floor(num(po.value)),ingredients:ing};
+      var ds=ex?S.dishes.map(function(d){return d.id===ex.id?rec:d}):S.dishes.concat([rec]);
+      save({users:S.users,dishes:ds});
+    },"primary")]);
+    if(ex)row.appendChild(btn("Abbrechen",function(){editDish=null;adminTab="dishes";render();}));
+    form.appendChild(row);w.appendChild(form);
+  }
+
+  render();
+})();
+</script>
+
+
+</body></html>
