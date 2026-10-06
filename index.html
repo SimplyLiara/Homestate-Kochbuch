@@ -63,7 +63,7 @@ ol.steps li{margin:4px 0}
 <script>
 (function(){
   var REPO="SimplyLiara/Homestate-Kochbuch",FILE="data.json";
-  var API="https://api.github.com/repos/"+REPO+"/contents/"+FILE,ITER=600000,MINPW=10;
+  var PESO=20,API="https://api.github.com/repos/"+REPO+"/contents/"+FILE,ITER=600000,MINPW=10;
   var S=null,F=null,DKraw=null,DKkey=null,KEKraw=null,TOK="",SHA=null,saving=false;
   var SHOPS=["Bauernhof","24/7","General Store 1","General Store 2","General Store 3","General Store 4","General Store 5","Rex Diner"];
   var STATIONS={herd:"Herd",mixer:"Mixer",grill:"Grill"};
@@ -776,18 +776,24 @@ ol.steps li{margin:4px 0}
     var pmode=xp.name?(xp.only?"only":"opt"):"";
     var pk=el("select",{},[["","Kein Gebinde"],["opt","Einzeln oder im Gebinde"],["only","Nur im Gebinde"]].map(function(o){return el("option",{value:o[0],text:o[1],selected:o[0]===pmode})}));
     var pe=el("input",{type:"checkbox",checked:!!ex&&((ex.mxn||0)>0||(xp.mxn||0)>0)});
-    var usF=field("Preis in Dollar (pro Stück)",us),mxF=field("Preis in ₽ (pro Stück)",mx),pmF=field("Preis des Gebindes in ₽",pm);
+    var usF=field("Preis in Dollar (pro Stück)",us),mxF=field("Preis in ₽ (pro Stück) – automatisch "+PESO+" × Dollar",mx),pmF=field("Preis des Gebindes in ₽ – automatisch "+PESO+" × Dollar",pm);
+    mx.readOnly=pm.readOnly=true;mx.tabIndex=pm.tabIndex=-1;mx.style.opacity=pm.style.opacity=".7";
+    function calc(){
+      mx.value=pe.checked?fv(Math.round(num(us.value)*PESO*100)/100):"";
+      pm.value=pe.checked?fv(Math.round(num(pu.value)*PESO*100)/100):"";
+    }
+    us.oninput=pu.oninput=calc;
     var pbox=el("div",{},[field("Name des Gebindes",pn),field("Inhalt (Stück)",ps),field("Shop für das Gebinde",psh),
       field("Preis des Gebindes in Dollar",pu),pmF]);
     function peso(){
       var only=pk.value==="only";
       pbox.hidden=!pk.value;usF.hidden=only;mxF.hidden=only||!pe.checked;pmF.hidden=!pe.checked;
     }
-    pe.onchange=peso;pk.onchange=peso;peso();
+    pe.onchange=function(){calc();peso();};pk.onchange=peso;calc();peso();
     var err=el("p",{className:"msg",role:"alert"});
     var row=el("div",{className:"row"},[btn("Speichern",function(){
       var name=nm.value.trim();
-      if(!pe.checked){mx.value="";pm.value="";}
+      calc();
       if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
       if(S.ingredients.some(function(m){return m!==ex&&m.name.toLowerCase()===name.toLowerCase()})){err.textContent="Diese Zutat gibt es schon.";return;}
       var pname=pn.value.trim(),psize=Math.floor(num(ps.value));
