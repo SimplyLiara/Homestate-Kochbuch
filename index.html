@@ -100,8 +100,33 @@ ol.steps li{margin:4px 0}
     try{localStorage.removeItem("rp_c_"+me.name)}catch(e){}
     clearChecks();render();
   }
-  function hasPrice(m){return (m.usd||0)>0||(m.mxn||0)>0;}
-  function priceText(m){return hasPrice(m)?money(m.usd||0,m.mxn||0)+" pro Stück":"Preis fehlt";}
+  function packOf(m){var p=m&&m.pack;return p&&p.name&&p.size>1?p:null;}
+  function singlePrice(m){return (m.usd||0)>0||(m.mxn||0)>0;}
+  function packPrice(m){var p=packOf(m);return !!p&&((p.usd||0)>0||(p.mxn||0)>0);}
+  function hasPrice(m){var p=packOf(m);return p&&p.only?packPrice(m):singlePrice(m);}
+  function priceText(m){
+    var p=packOf(m),t=[];
+    if(!(p&&p.only))t.push(singlePrice(m)?money(m.usd||0,m.mxn||0)+" pro Stück":"Preis fehlt");
+    if(p)t.push(p.name+" ("+fmt(p.size)+" Stück): "+(packPrice(m)?money(p.usd||0,p.mxn||0):"Preis fehlt")+(p.only?" – nur so erhältlich":""));
+    return t.join(" · ");
+  }
+  function buyPlan(m,n){
+    var p=packOf(m),sp=singlePrice(m),pp=packPrice(m);
+    function mk(packs,singles){
+      return {packs:packs,singles:singles,units:(p?packs*p.size:0)+singles,
+        usd:(p?packs*(p.usd||0):0)+singles*(m.usd||0),mxn:(p?packs*(p.mxn||0):0)+singles*(m.mxn||0),
+        priced:(!packs||pp)&&(!singles||sp)};
+    }
+    if(!p)return mk(0,n);
+    var up=Math.ceil(n/p.size);
+    if(p.only)return mk(up,0);
+    var dn=Math.floor(n/p.size),best=mk(dn,Math.round((n-dn*p.size)*1000)/1000);
+    if(sp&&pp){
+      var f=((m.usd||0)>0&&(p.usd||0)>0)?"usd":"mxn";
+      [mk(up,0),mk(0,n)].forEach(function(o){if(o[f]<best[f]-1e-9)best=o;});
+    }
+    return best;
+  }
   function fmt(v){return String(Math.round(v*100)/100).replace(".",",");}
   function byName(a,b){return a.name.localeCompare(b.name,"de")}
   var useStock=true,backTo=null;
@@ -399,7 +424,7 @@ ol.steps li{margin:4px 0}
       d.ingredients.forEach(function(i){
         var m=findIng(i.name)||{name:i.name};
         var k=m.name.toLowerCase();
-        var a=agg[k]||(agg[k]={key:k,name:m.name,shop:m.shop||"Kein Shop",need:0,usd:m.usd||0,mxn:m.mxn||0,wt:m.weight||0,stock:m.stock||0,priced:hasPrice(m)});
+        var a=agg[k]||(agg[k]={key:k,name:m.name,shop:m.shop||"Kein Shop",need:0,usd:m.usd||0,mxn:m.mxn||0,wt:m.weight||0,stock:m.stock||0,m:m});
         a.need+=i.qty*n;
       });});
     var rows=Object.keys(agg).map(function(k){var a=agg[k];a.buy=useStock?Math.max(0,a.need-a.stock):a.need;return a;});
@@ -417,13 +442,24 @@ ol.steps li{margin:4px 0}
       hd.firstChild.setAttribute("aria-label","Abgehakt");
       var t=el("table",{},[hd]);
       shops[s].sort(byName).forEach(function(r){
-        gu+=r.usd*r.buy;gm+=r.mxn*r.buy;gw+=r.wt*r.buy;if(!r.priced)miss++;
+        var pl=buyPlan(r.m,r.buy),pk=packOf(r.m),left=Math.round((pl.units-r.buy)*1000)/1000;
+        gu+=pl.usd;gm+=pl.mxn;gw+=r.wt*pl.units;if(!pl.priced)miss++;
         var bx=el("input",{type:"checkbox",checked:!!ck[r.key]});
         bx.setAttribute("aria-label",r.name+" abhaken");
-        var qc=[el("div",{text:fmt(r.buy)+"×"})];
+        var qc=[],ec=[];
+        if(pl.packs){
+          qc.push(el("div",{text:fmt(pl.packs)+"× "+pk.name}));
+          ec.push(el("div",{text:pk.name+": "+(packPrice(r.m)?money(pk.usd||0,pk.mxn||0):"Preis fehlt")}));
+        }
+        if(pl.singles){
+          qc.push(el("div",{text:fmt(pl.singles)+"×"+(pl.packs?" einzeln":"")}));
+          ec.push(el("div",{text:(pl.packs?"Einzeln: ":"")+(singlePrice(r.m)?money(r.usd,r.mxn):"Preis fehlt")}));
+        }
+        if(pl.packs)qc.push(el("div",{className:"muted",text:"= "+fmt(pl.units)+" Stück"+(left>0?", "+fmt(left)+" übrig":"")}));
         if(useStock&&r.stock>0)qc.push(el("div",{className:"muted",text:"Bedarf "+fmt(r.need)+", Bestand "+fmt(r.stock)}));
-        var ec=[el("div",{text:r.priced?money(r.usd,r.mxn):"Preis fehlt"})],gc=[el("div",{text:r.priced?money(r.usd*r.buy,r.mxn*r.buy):"–"})];
-        if(r.wt>0){ec.push(el("div",{className:"muted",text:kg(r.wt)}));gc.push(el("div",{className:"muted",text:kg(r.wt*r.buy)}));}
+        else if(pl.packs)qc.push(el("div",{className:"muted",text:"Bedarf "+fmt(r.buy)}));
+        var gc=[el("div",{text:pl.priced?money(pl.usd,pl.mxn):"–"})];
+        if(r.wt>0){ec.push(el("div",{className:"muted",text:kg(r.wt)+" pro Stück"}));gc.push(el("div",{className:"muted",text:kg(r.wt*pl.units)}));}
         var tr=el("tr",{className:ck[r.key]?"done":""},[el("td",{},[bx]),el("td",{text:r.name}),el("td",{},qc),el("td",{},ec),el("td",{},gc)]);
         bx.onchange=function(){setCheck(r.key,bx.checked);tr.className=bx.checked?"done":"";};
         t.appendChild(tr);
@@ -454,7 +490,7 @@ ol.steps li{margin:4px 0}
   function missingAdmin(w){
     w.appendChild(el("h2",{text:"Was fehlt noch?"}));
     var ings=S.ingredients.map(function(m){
-      var f=[];if(!hasPrice(m))f.push("Preis");if(!m.shop)f.push("Shop");if(!(m.weight>0))f.push("Gewicht");
+      var f=[];if(!hasPrice(m))f.push("Preis");else if(packOf(m)&&!packPrice(m))f.push("Gebindepreis");if(!m.shop)f.push("Shop");if(!(m.weight>0))f.push("Gewicht");
       return {name:m.name,f:f,go:function(){ingEdit=m.name;adminTab="ingredients";backTo="missing";render();window.scrollTo(0,0);}};
     });
     var dishes=S.dishes.map(function(d){
@@ -708,12 +744,22 @@ ol.steps li{margin:4px 0}
     var sh=shopSelect(ex?ex.shop:"");
     var us=el("input",{value:ex?fv(ex.usd):"",inputMode:"decimal"});
     var mx=el("input",{value:ex?fv(ex.mxn):"",inputMode:"decimal"});
+    var xp=(ex&&ex.pack)||{};
+    var pn=el("input",{value:xp.name||"",maxLength:60,placeholder:"z. B. Flasche Olivenöl"});
+    var ps=el("input",{value:fv(xp.size),inputMode:"numeric",placeholder:"z. B. 8"});
+    var pu=el("input",{value:fv(xp.usd),inputMode:"decimal"});
+    var pm=el("input",{value:fv(xp.mxn),inputMode:"decimal"});
+    var po=el("input",{type:"checkbox",checked:!!xp.only});
     var err=el("p",{className:"msg",role:"alert"});
     var row=el("div",{className:"row"},[btn("Speichern",function(){
       var name=nm.value.trim();
       if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
       if(S.ingredients.some(function(m){return m!==ex&&m.name.toLowerCase()===name.toLowerCase()})){err.textContent="Diese Zutat gibt es schon.";return;}
+      var pname=pn.value.trim(),psize=Math.floor(num(ps.value));
+      if(!pname&&(psize||num(pu.value)||num(pm.value)||po.checked)){err.textContent="Bitte gib dem Gebinde einen Namen oder leere die Gebinde-Felder.";return;}
+      if(pname&&psize<2){err.textContent="Ein Gebinde muss mindestens 2 Stück enthalten.";return;}
       var rec={name:name,weight:num(wt.value),shop:sh.value,usd:num(us.value),mxn:num(mx.value),stock:ex?(ex.stock||0):0};
+      if(pname)rec.pack={name:pname,size:psize,usd:num(pu.value),mxn:num(pm.value),only:po.checked};
       var ings=ex?S.ingredients.map(function(m){return m===ex?rec:m}):S.ingredients.concat([rec]);
       var ds=S.dishes;
       if(ex&&ex.name!==name)ds=S.dishes.map(function(d){
@@ -724,7 +770,13 @@ ol.steps li{margin:4px 0}
     if(ex)row.appendChild(btn("Abbrechen",function(){ingEdit=null;if(backTo){adminTab=backTo;backTo=null;}render();}));
     w.appendChild(el("div",{className:"card"},[el("h3",{text:ex?"Zutat bearbeiten":"Neue Zutat"}),
       field("Name der Zutat",nm),field("Gewicht pro Stück (kg)",wt),field("Shop",sh),
-      field("Preis in Dollar (pro Stück)",us),field("Preis in ₽ (pro Stück)",mx),row,err]));
+      field("Preis in Dollar (pro Stück)",us),field("Preis in ₽ (pro Stück)",mx),
+      el("h3",{text:"Gebinde (optional)",style:"margin-top:20px;font-size:1.1rem"}),
+      el("p",{className:"muted",style:"margin:0",text:"Für Zutaten, die es als Flasche, Sack, Glas o. Ä. mit mehreren Stück gibt. Die Einkaufsliste rechnet dann in Gebinden."}),
+      field("Name des Gebindes",pn),field("Inhalt (Stück)",ps),
+      field("Preis des Gebindes in Dollar",pu),field("Preis des Gebindes in ₽",pm),
+      el("div",{className:"row"},[el("label",{className:"chk"},[po,"Nur im Gebinde erhältlich (kein Einzelkauf)"])]),
+      row,err]));
 
     var listErr=el("p",{className:"msg",role:"alert"});
     var box=el("div");
