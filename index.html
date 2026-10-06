@@ -75,7 +75,7 @@ ol.steps li{margin:4px 0}
   function btn(t,fn,cls){var b=el("button",{text:t,type:"button",className:cls||""});b.onclick=fn;return b;}
   function field(lbl,input){return el("div",{},[el("label",{text:lbl}),input]);}
   function num(v){v=parseFloat(String(v).replace(",","."));return isFinite(v)&&v>=0?v:0;}
-  function money(usd,mxn){return "$"+usd.toFixed(2)+" / "+mxn.toFixed(2)+" ₽";}
+  function money(usd,mxn){if(!(mxn>0))return "$"+usd.toFixed(2);if(!(usd>0))return mxn.toFixed(2)+" ₽";return "$"+usd.toFixed(2)+" / "+mxn.toFixed(2)+" ₽";}
   function kg(v){return String(Math.round(v*1000)/1000).replace(".",",")+" kg";}
   function dateDe(s){var p=(s||"").split("-");return p.length===3?p[2]+"."+p[1]+"."+p[0]:(s||"–");}
   var ICON=document.querySelector("link[rel=icon]").href;
@@ -440,13 +440,14 @@ ol.steps li{margin:4px 0}
     w.appendChild(el("div",{className:"row"},[el("label",{className:"chk"},[sc,"Bestand abziehen"])]));
     w.appendChild(el("div",{className:"row"},[btn("Haken entfernen",function(){clearChecks();render();}),btn("Alle Anzahlen auf 0",resetCounts)]));
     var buy=rows.filter(function(r){return r.buy>0}),covered=rows.filter(function(r){return r.buy<=0}).sort(byName);
-    var shops={},gu=0,gm=0,gw=0,miss=0,ck=checks();
+    var shops={},gu=0,gm=0,gw=0,gpu=0,miss=0,ck=checks();
     function line(shop,o){(shops[shop||"Kein Shop"]=shops[shop||"Kein Shop"]||[]).push(o);}
     buy.forEach(function(r){
       var pl=buyPlan(r.m,r.buy),pk=packOf(r.m),left=Math.round((pl.units-r.buy)*1000)/1000;
       var note=(useStock&&r.stock>0)?"Bedarf "+fmt(r.need)+", Bestand "+fmt(r.stock):(pl.packs?"Bedarf "+fmt(r.buy):"");
       var pShop=pk?(pk.shop||r.m.shop||""):"",split=pl.packs&&pl.singles&&pShop!==(r.m.shop||"");
       gu+=pl.usd;gm+=pl.mxn;gw+=r.wt*pl.units;if(!pl.priced)miss++;
+      if(pl.packs&&pk.mxn>0)gpu+=pl.packs*(pk.usd||0);if(pl.singles&&r.mxn>0)gpu+=pl.singles*r.usd;
       if(pl.packs){
         var pok=packPrice(r.m),pu=pl.packs*pk.size;
         var q=[el("div",{text:fmt(pl.packs)+"× "+pk.name}),el("div",{className:"muted",text:"= "+fmt(pu)+" Stück"+(left>0?", "+fmt(left)+" übrig":"")})];
@@ -492,7 +493,8 @@ ol.steps li{margin:4px 0}
       covered.forEach(function(r){ul.appendChild(el("li",{text:r.name+" – Bedarf "+fmt(r.need)+", Bestand "+fmt(r.stock)}))});
       w.appendChild(el("div",{className:"card"},[el("h3",{text:"Schon im Bestand"}),ul]));
     }
-    var tot=[el("h3",{text:"Insgesamt"}),el("p",{},[el("strong",{text:"Gesamtpreis: "+money(gu,gm)})])];
+    var tot=[el("h3",{text:"Insgesamt"}),el("p",{},[el("strong",{text:"Gesamtpreis: "+money(gu,0)})])];
+    if(gm>0)tot.push(el("p",{className:"muted",text:"Davon auch in Pesos erhältlich: "+money(0,gm)+(gpu>0?" statt "+money(gpu,0):"")}));
     if(miss)tot.push(el("p",{className:"danger",text:"Unvollständig: Bei "+miss+(miss===1?" Zutat":" Zutaten")+" fehlt der Preis."}));
     tot.push(el("p",{},[el("strong",{text:"Gesamtgewicht: "+kg(gw)})]));
     if(ep>0)tot.push(el("p",{},[el("strong",{text:"Erfahrungspunkte: "+ep+" EP"})]));
@@ -772,9 +774,14 @@ ol.steps li{margin:4px 0}
     var pu=el("input",{value:fv(xp.usd),inputMode:"decimal"});
     var pm=el("input",{value:fv(xp.mxn),inputMode:"decimal"});
     var po=el("input",{type:"checkbox",checked:!!xp.only});
+    var pe=el("input",{type:"checkbox",checked:!!ex&&((ex.mxn||0)>0||(xp.mxn||0)>0)});
+    var mxF=field("Preis in ₽ (pro Stück)",mx),pmF=field("Preis des Gebindes in ₽",pm);
+    function peso(){mxF.hidden=pmF.hidden=!pe.checked;}
+    pe.onchange=peso;peso();
     var err=el("p",{className:"msg",role:"alert"});
     var row=el("div",{className:"row"},[btn("Speichern",function(){
       var name=nm.value.trim();
+      if(!pe.checked){mx.value="";pm.value="";}
       if(!name){err.textContent="Bitte gib einen Namen ein.";return;}
       if(S.ingredients.some(function(m){return m!==ex&&m.name.toLowerCase()===name.toLowerCase()})){err.textContent="Diese Zutat gibt es schon.";return;}
       var pname=pn.value.trim(),psize=Math.floor(num(ps.value));
@@ -792,11 +799,12 @@ ol.steps li{margin:4px 0}
     if(ex)row.appendChild(btn("Abbrechen",function(){ingEdit=null;if(backTo){adminTab=backTo;backTo=null;}render();}));
     w.appendChild(el("div",{className:"card"},[el("h3",{text:ex?"Zutat bearbeiten":"Neue Zutat"}),
       field("Name der Zutat",nm),field("Gewicht pro Stück (kg)",wt),field("Shop",sh),
-      field("Preis in Dollar (pro Stück)",us),field("Preis in ₽ (pro Stück)",mx),
+      field("Preis in Dollar (pro Stück)",us),
+      el("div",{className:"row"},[el("label",{className:"chk"},[pe,"Auch in Pesos (₽) erhältlich"])]),mxF,
       el("h3",{text:"Gebinde (optional)",style:"margin-top:20px;font-size:1.1rem"}),
       el("p",{className:"muted",style:"margin:0",text:"Für Zutaten, die es als Flasche, Sack, Glas o. Ä. mit mehreren Stück gibt. Die Einkaufsliste rechnet dann in Gebinden."}),
       field("Name des Gebindes",pn),field("Inhalt (Stück)",ps),field("Shop für das Gebinde",psh),
-      field("Preis des Gebindes in Dollar",pu),field("Preis des Gebindes in ₽",pm),
+      field("Preis des Gebindes in Dollar",pu),pmF,
       el("div",{className:"row"},[el("label",{className:"chk"},[po,"Nur im Gebinde erhältlich (kein Einzelkauf)"])]),
       row,err]));
 
