@@ -119,7 +119,7 @@ ul.ing{margin:6px 0 0;padding-left:1.2em}
     root.textContent="";applyTheme();
     if(!me){return loginView();}
     var top=el("div",{className:"top"},[el("div",{className:"wrap"},[
-      el("strong",{text:"Mein Rp"}),
+      el("strong",{text:"Kochübersicht Homestate"}),
       el("span",{text:me.name}),
       btn(theme()==="dark"?"Hell":"Dunkel",toggleTheme),
       btn("Abmelden",function(){me=null;try{sessionStorage.removeItem("rp_user")}catch(e){}view="start";msg="";render();})
