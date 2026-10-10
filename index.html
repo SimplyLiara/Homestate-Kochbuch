@@ -52,9 +52,6 @@ button.danger:hover{background:color-mix(in srgb,var(--danger) 10%,transparent)}
 .seg button[aria-pressed="true"]{background:var(--card);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.16)}
 .seg+h2{margin-top:22px}
 
-.hero{background:var(--hero);color:var(--hero-ink);border-radius:26px;padding:52px 26px;margin:22px 0 14px;text-align:center}
-.hero h1{font-size:clamp(2.1rem,8vw,3.2rem)}
-.hero p{margin:12px 0 0;font-size:1.15rem;opacity:.86}
 
 .card{background:var(--card);border-radius:18px;padding:22px;margin:14px 0;box-shadow:0 0 0 1px color-mix(in srgb,var(--line) 55%,transparent)}
 .card h3{font-size:1.25rem;font-weight:600;margin-bottom:6px}
@@ -64,8 +61,8 @@ button.danger:hover{background:color-mix(in srgb,var(--danger) 10%,transparent)}
 .msg{margin-top:12px;color:var(--danger)}
 
 label{display:block;margin:16px 0 6px;font-weight:600;font-size:.82rem;color:var(--muted)}
-input,select{width:100%;font:inherit;letter-spacing:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:46px;transition:border-color .2s,box-shadow .2s}
-input:focus,select:focus{outline:0;border-color:var(--ui);box-shadow:0 0 0 4px color-mix(in srgb,var(--ui) 24%,transparent)}
+input,select,textarea{width:100%;font:inherit;letter-spacing:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-height:46px;transition:border-color .2s,box-shadow .2s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--ui);box-shadow:0 0 0 4px color-mix(in srgb,var(--ui) 24%,transparent)}
 input[readonly]{background:transparent}
 select{min-width:0;max-width:100%}
 .srow .row{flex-wrap:nowrap;flex:none}
@@ -103,6 +100,60 @@ ol.steps li{margin:6px 0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:color-mix(in srgb,var(--ink) 92%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--bg);padding:11px 20px;border-radius:22px;font-size:.92rem;max-width:calc(100% - 32px);width:max-content;z-index:5;box-shadow:0 8px 28px rgba(0,0,0,.22)}
 .toast.bad{background:var(--danger)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.top .wrap,.wide{max-width:1120px}
+textarea{resize:vertical;min-height:110px;line-height:1.45}
+.small{font-size:.85rem}
+.hero{background:var(--hero);color:var(--hero-ink);border-radius:26px;padding:34px 24px 26px;margin:22px 0 14px}
+.hero .eyebrow{font-size:.9rem;opacity:.8;margin:0 0 6px}
+.hero h1{font-size:2.2rem}
+.hero .sub{margin:8px 0 0;opacity:.86;font-size:1rem}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}
+.stat{background:rgba(255,255,255,.16);border-radius:14px;padding:10px 12px;min-width:0}
+.stat b{display:block;font-size:1.35rem;letter-spacing:-.02em}
+.stat span{font-size:.75rem;opacity:.85}
+.sbox{margin:14px 0}
+.sbox input[type=search]{margin:0;min-height:50px;background:var(--card);border-color:transparent;box-shadow:0 0 0 1px color-mix(in srgb,var(--line) 55%,transparent)}
+.sbox input[type=search]:focus{border-color:var(--ui);box-shadow:0 0 0 4px color-mix(in srgb,var(--ui) 24%,transparent)}
+.sres:not(:empty){background:var(--card);border-radius:14px;margin-top:6px;padding:2px 16px;box-shadow:0 0 0 1px color-mix(in srgb,var(--line) 55%,transparent)}
+.sres p{margin:10px 0}
+button.sitem{display:flex;justify-content:space-between;gap:12px;width:100%;border:0;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:0;padding:11px 0;min-height:0;background:none;text-align:left;font-size:.95rem}
+button.sitem:last-child{border-bottom:0}
+button.sitem:hover{background:none;opacity:.75}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
+button.tile{display:block;width:100%;text-align:left;background:var(--card);border:0;border-radius:18px;padding:16px;min-height:0;box-shadow:0 0 0 1px color-mix(in srgb,var(--line) 55%,transparent)}
+button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
+.tile .ic{display:block;font-size:1.5rem;line-height:1}
+.tile b{display:block;margin-top:10px;font-size:1.02rem}
+.tile .ts{font-size:.82rem;color:var(--muted)}
+.big{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.big b{font-size:1.9rem;letter-spacing:-.03em;line-height:1.1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-size:.78rem;padding:4px 10px;border-radius:99px;background:color-mix(in srgb,var(--accent) 22%,transparent)}
+.bar{height:8px;border-radius:99px;background:color-mix(in srgb,var(--ink) 9%,transparent);overflow:hidden;margin:14px 0 2px}
+.bar i{display:block;height:100%;background:var(--ui);border-radius:99px}
+.ep{padding:10px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.ep:last-child{border:0}
+.ep .t{display:flex;justify-content:space-between;gap:10px;font-size:.95rem}
+.ep small{color:var(--muted)}
+.li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent);font-size:.95rem}
+.li:last-of-type{border-bottom:0}
+.pill{font-size:.75rem;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.low{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
+.okp{background:color-mix(in srgb,var(--ui) 16%,transparent);color:var(--ui)}
+.note{background:color-mix(in srgb,var(--accent) 18%,var(--card))}
+.note small{color:var(--muted)}
+.ntext{white-space:pre-wrap}
+.av{width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex:none}
+.bd{display:flex;gap:12px;align-items:center;padding:8px 0}
+.dish{display:flex;gap:12px;align-items:center}
+.dish .em{width:54px;height:54px;border-radius:14px;background:color-mix(in srgb,var(--accent) 25%,transparent);display:flex;align-items:center;justify-content:center;font-size:1.7rem;flex:none}
+@media(min-width:900px){
+  .sgrid{display:grid;grid-template-columns:repeat(12,1fr);gap:0 22px;align-items:start}
+  .c8{grid-column:span 8}.c4{grid-column:span 4}.c6{grid-column:span 6}
+  .hero{padding:44px 40px 34px}.hero h1{font-size:3rem}
+  .stats{grid-template-columns:repeat(3,minmax(0,170px))}
+  .sbox{margin-top:22px}
+}
 </style>
 </head>
 <body>
@@ -241,6 +292,7 @@ ol.steps li{margin:6px 0}
     if(saving)return false;
     saving=true;
     try{
+      Object.keys(S).forEach(function(k){if(!(k in st))st[k]=S[k];});
       st.users=st.users||S.users;st.dishes=st.dishes||S.dishes;st.ingredients=st.ingredients||S.ingredients;st.stockDishes=st.stockDishes||S.stockDishes;
       var nf={v:1,users:fus||F.users,data:await seal(DKkey,enc.encode(JSON.stringify(st)))};
       var text=JSON.stringify(nf);
@@ -296,7 +348,7 @@ ol.steps li{margin:6px 0}
   function toggleTheme(){var t=theme()==="dark"?"light":"dark";try{localStorage.setItem("rp_theme_"+me.name,t);}catch(e){}render();}
   var root=document.getElementById("app");
   function render(){
-    root.textContent="";applyTheme();
+    var keepY=window.scrollY;root.textContent="";applyTheme();
     if(!me){return loginView();}
     if(me.mustChange){return pwView();}
     var tabs=[["start","Start"],["rezepte","Rezepte"],["listen","Listen"]];
@@ -310,7 +362,7 @@ ol.steps li{margin:6px 0}
         btn(theme()==="dark"?"Hell":"Dunkel",toggleTheme,"link"),btn("Abmelden",logout,"link")])
     ])]);
     root.appendChild(top);
-    var w=el("main",{className:"wrap"});
+    var w=el("main",{className:view==="start"?"wrap wide":"wrap"});
     if(view==="start")startView(w);
     else if(view==="rezepte")rezepteView(w);
     else if(view==="listen")listenView(w);
@@ -318,6 +370,7 @@ ol.steps li{margin:6px 0}
     if(msg)w.appendChild(el("p",{className:"msg",role:"alert",text:msg}));
     w.appendChild(el("div",{style:"height:64px"}));
     root.appendChild(w);
+    window.scrollTo(0,keepY);
     [].forEach.call(root.querySelectorAll(".seg"),function(s){var b=s.querySelector('[aria-pressed="true"]');if(b)s.scrollLeft=b.offsetLeft-(s.clientWidth-b.offsetWidth)/2;});
   }
 
@@ -381,15 +434,160 @@ ol.steps li{margin:6px 0}
     root.appendChild(f);
   }
 
+  var pick=null,noteEdit=false;
+  var EM={herd:"🍳",mixer:"🥤",grill:"🔥"};
+  function go(v,extra){view=v;msg="";if(extra)extra();render();window.scrollTo(0,0);}
+  function card(title,kids,cls){return el("div",{className:"card"+(cls?" "+cls:"")},[el("h3",{text:title})].concat(kids.filter(Boolean)));}
+  function li(label,right){return el("div",{className:"li"},[el("span",{text:label}),right]);}
+  function pill(t,c){return el("span",{className:"pill "+c,text:t});}
+  function plural(n,one,many){return n+" "+(n===1?one:many);}
+  function relDay(ts){var d=Math.floor((Date.now()-ts)/864e5);return d<=0?"heute":d===1?"gestern":"vor "+d+" Tagen";}
+  function nextBirthday(b){
+    var p=(b||"").split("-");if(p.length!==3)return null;
+    var now=new Date(),t=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    var n=new Date(t.getFullYear(),+p[1]-1,+p[2]);if(n<t)n.setFullYear(t.getFullYear()+1);
+    return {days:Math.round((n-t)/864e5),date:n,age:n.getFullYear()-(+p[0])};
+  }
+  function unitUsd(m){if((m.usd||0)>0)return m.usd;var p=packOf(m);return p&&(p.usd||0)>0?p.usd/p.size:null;}
+  function startData(){
+    var c=counts(),ck=checks(),agg={},planned=0;
+    S.dishes.forEach(function(d){var n=c[d.id]||0;if(!n)return;planned++;
+      d.ingredients.forEach(function(i){var m=findIng(i.name)||{name:i.name},k=m.name.toLowerCase();
+        var a=agg[k]||(agg[k]={key:k,name:m.name,need:0,stock:m.stock||0,m:m});a.need+=i.qty*n;});});
+    var lines=[],usd=0,miss=0,shops={},short=[];
+    Object.keys(agg).forEach(function(k){var a=agg[k];
+      if(a.need>a.stock)short.push(a);
+      var buy=useStock?Math.max(0,a.need-a.stock):a.need;if(buy<=0)return;
+      var pl=buyPlan(a.m,buy),pk=packOf(a.m),pShop=pk?(pk.shop||a.m.shop||""):"",split=pl.packs&&pl.singles&&pShop!==(a.m.shop||"");
+      usd+=pl.usd;if(!pl.priced)miss++;
+      if(pl.packs)lines.push({key:k+"#g",shop:pShop||"Kein Shop"});
+      if(pl.singles&&(!pl.packs||split))lines.push({key:k,shop:a.m.shop||"Kein Shop"});
+    });
+    lines.forEach(function(l){shops[l.shop]=(shops[l.shop]||0)+1;});
+    short.sort(function(x,y){return (y.need-y.stock)-(x.need-x.stock)});
+    return {planned:planned,lines:lines,done:lines.filter(function(l){return ck[l.key]}).length,usd:usd,miss:miss,shops:shops,short:short};
+  }
   function startView(w){
-    w.appendChild(el("section",{className:"hero"},[el("h1",{text:"Willkommen, "+(me.charName||me.name)+"."}),el("p",{text:"Deine Kochübersicht für Homestate."})]));
-    w.appendChild(el("div",{className:"card"},[
-      el("h3",{text:"Dein Charakter"}),
-      el("p",{text:"Name: "+(me.charName||"noch nicht eingetragen")}),
-      el("p",{text:"Geburtsdatum: "+dateDe(me.birth)})
-    ]));
-    if(me.role==="admin"&&!TOK)
-      w.appendChild(el("div",{className:"card warn"},[el("p",{text:"Direktes Speichern ist noch nicht eingerichtet. Trage unter Admin → Einstellungen deinen GitHub-Schlüssel ein."})]));
+    var D=startData(),isA=me.role==="admin",nShops=Object.keys(D.shops).length,hr=new Date().getHours();
+    // 1 Kopfbereich
+    var bd=nextBirthday(me.birth);
+    var sub=bd?"Geboren am "+dateDe(me.birth)+" · "+(bd.days===0?"Heute ist dein Geburtstag! 🎂":"Geburtstag in "+plural(bd.days,"Tag","Tagen")):"Deine Kochübersicht für Homestate.";
+    function stat(n,t){return el("div",{className:"stat"},[el("b",{text:String(n)}),el("span",{text:t})]);}
+    var hero=el("section",{className:"hero"},[
+      el("p",{className:"eyebrow",text:hr<11?"Guten Morgen":hr<18?"Guten Tag":"Guten Abend"}),
+      el("h1",{text:me.charName||me.name}),el("p",{className:"sub",text:sub}),
+      el("div",{className:"stats"},[stat(S.dishes.length,S.dishes.length===1?"Rezept":"Rezepte"),stat(D.lines.length,"auf der Liste"),stat(nShops,nShops===1?"Shop":"Shops")])]);
+    // 2 Schnellsuche
+    var sIn=el("input",{type:"search",placeholder:"🔍  Gericht oder Zutat suchen …"});sIn.setAttribute("aria-label","Alle Rezepte durchsuchen");
+    var res=el("div",{className:"sres"});
+    sIn.oninput=function(){
+      res.textContent="";var t=sIn.value.trim();if(!t)return;
+      var ds=S.dishes.filter(function(d){return matches(d,t)}).sort(byName);
+      if(!ds.length){res.appendChild(el("p",{className:"muted",text:"Kein Gericht gefunden."}));return;}
+      ds.slice(0,8).forEach(function(d){
+        var b=el("button",{type:"button",className:"sitem"},[el("span",{text:d.name}),el("span",{className:"muted",text:STATIONS[d.station]})]);
+        b.onclick=function(){go("rezepte",function(){recipeTab=d.station;searchTerm[d.station]=d.name;});};
+        res.appendChild(b);
+      });
+      if(ds.length>8)res.appendChild(el("p",{className:"muted small",text:"… und "+(ds.length-8)+" weitere. Tippe weiter, um einzugrenzen."}));
+    };
+    var search=el("div",{className:"sbox"},[sIn,res]);
+    // 3 Schnellzugriff
+    function tile(ic,t,s,fn){var b=el("button",{type:"button",className:"tile"},[el("span",{className:"ic",text:ic}),el("b",{text:t}),el("span",{className:"ts",text:s})]);b.onclick=fn;return b;}
+    var tiles=el("div",{className:"tiles"},Object.keys(STATIONS).map(function(k){
+      var n=S.dishes.filter(function(d){return d.station===k}).length;
+      return tile(EM[k],STATIONS[k],n?plural(n,"Gericht","Gerichte"):"noch leer",function(){go("rezepte",function(){recipeTab=k;});});
+    }).concat([tile("📦","Bestand",D.short.length?plural(D.short.length,"Artikel","Artikel")+" knapp":D.planned?"alles da":"Übersicht",function(){go("listen",function(){listTab="bestand";});})]));
+    // 4 Einkaufsliste
+    var lc;
+    if(!D.lines.length){
+      lc=card("Deine Einkaufsliste",[el("p",{className:"muted",text:D.planned?"Alles Nötige ist schon im Bestand.":"Noch nichts geplant. Gib bei den Rezepten eine Anzahl ein, dann erscheint hier deine Liste."}),
+        el("div",{className:"row"},[btn(D.planned?"Liste öffnen":"Zu den Rezepten",function(){if(D.planned)go("listen",function(){listTab="liste";});else go("rezepte");},"primary")])]);
+    }else{
+      var pct=Math.round(D.done/D.lines.length*100);
+      lc=card("Deine Einkaufsliste",[
+        el("div",{className:"big"},[el("div",{},[el("b",{text:money(D.usd,0)}),
+          el("div",{className:"muted small",text:plural(D.lines.length,"Zutat","Zutaten")+" · "+plural(nShops,"Shop","Shops")+" · "+D.done+" von "+D.lines.length+" abgehakt"})]),
+          btn("Öffnen",function(){go("listen",function(){listTab="liste";});},"primary")]),
+        D.miss?el("p",{className:"danger small",style:"margin:8px 0 0",text:"Bei "+plural(D.miss,"Zutat","Zutaten")+" fehlt noch der Preis."}):null,
+        el("div",{className:"bar"},[el("i",{style:"width:"+pct+"%"})]),
+        el("div",{className:"chips"},Object.keys(D.shops).sort().map(function(s){return el("span",{className:"chip",text:s+" · "+D.shops[s]})}))]);
+    }
+    // 5 EP
+    var epd=S.dishes.filter(function(d){return d.epPer>0}).map(function(d){
+      var cost=0,ok=d.ingredients.length>0;
+      d.ingredients.forEach(function(i){var m=findIng(i.name),u=m?unitUsd(m):null;if(u===null)ok=false;else cost+=u*i.qty;});
+      return {d:d,ok:ok,per:cost*d.epPer};
+    }).sort(function(x,y){if(x.ok!==y.ok)return x.ok?-1:1;return x.ok?x.per-y.per:x.d.epPer-y.d.epPer;});
+    var epk=[el("p",{className:"muted small",style:"margin:0 0 6px",text:"EP bekommst du als Spieler insgesamt. Hier siehst du, welches Gericht dich pro EP am wenigsten Herstellungen und Geld kostet."})];
+    if(!epd.length)epk.push(el("p",{className:"muted",text:"Sobald bei Gerichten eingetragen ist, wie oft man sie für 1 EP herstellen muss, erscheinen sie hier."}));
+    epd.slice(0,3).forEach(function(o){
+      epk.push(el("div",{className:"ep"},[el("div",{className:"t"},[el("span",{text:o.d.name}),el("b",{text:o.d.epPer+"× = 1 EP"})]),
+        el("small",{text:o.ok?"ca. "+money(o.per,0)+" pro EP · Zutaten: "+o.d.ingredients.map(function(i){return i.name}).join(", "):"Preis noch unvollständig"})]));
+    });
+    var epc=card("Womit sammelst du EP am günstigsten?",epk);
+    // 6 Bestand
+    var sk=[];
+    if(D.planned&&!D.short.length)sk.push(el("p",{className:"muted",style:"margin:0 0 4px",text:"Für deine geplanten Gerichte ist alles da."}));
+    D.short.slice(0,5).forEach(function(a){sk.push(li(a.name,pill(fmt(a.stock)+" da · "+fmt(a.need)+" nötig","low")));});
+    S.stockDishes.filter(function(x){return x.count>0}).map(function(x){return {x:x,d:S.dishes.find(function(d){return d.id===x.id})}})
+      .filter(function(o){return o.d}).sort(function(x,y){return y.x.count-x.x.count}).slice(0,3)
+      .forEach(function(o){sk.push(li(o.d.name,pill(o.x.count+" fertig","okp")));});
+    if(!sk.length)sk.push(el("p",{className:"muted",text:"Plane Gerichte bei den Rezepten, dann siehst du hier, was im Bestand fehlt."}));
+    var stc=card("Knapp im Bestand",sk);
+    // 7 Pinnwand
+    var N=S.notice&&S.notice.text?S.notice:null,pin=null;
+    if(noteEdit&&isA){
+      var ta=el("textarea",{value:N?N.text:"",maxLength:600,placeholder:"z. B. Der Rex Diner hat neue Preise."});ta.setAttribute("aria-label","Hinweis");
+      var nrow=el("div",{className:"row"},[btn("Speichern",async function(){
+        var t=ta.value.trim();noteEdit=false;
+        if(!await save({notice:t?{text:t,by:me.charName||me.name,at:Date.now()}:null}))noteEdit=true;
+      },"primary"),btn("Abbrechen",function(){noteEdit=false;render();})]);
+      if(N)nrow.appendChild(btn("Löschen",async function(){if(!confirm("Hinweis löschen?"))return;noteEdit=false;if(!await save({notice:null}))noteEdit=true;},"danger"));
+      pin=card("📌 Hinweis bearbeiten",[ta,nrow],"note");
+    }else if(N){
+      pin=card("📌 Hinweis",[el("p",{className:"ntext",text:N.text}),el("small",{text:N.by+" · "+relDay(N.at)}),
+        isA?el("div",{className:"row"},[btn("Bearbeiten",function(){noteEdit=true;render();})]):null],"note");
+    }else if(isA){
+      pin=card("📌 Pinnwand",[el("p",{className:"muted",text:"Hier kannst du einen Hinweis für alle Mitspieler hinterlegen. Ist die Pinnwand leer, sehen die anderen sie nicht."}),
+        el("div",{className:"row"},[btn("Hinweis schreiben",function(){noteEdit=true;render();})])],"note");
+    }
+    // 8 Geburtstage
+    var WD=["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+    var bl=S.users.filter(function(u){return u.name!==me.name}).map(function(u){return {u:u,b:nextBirthday(u.birth)}})
+      .filter(function(o){return o.b&&o.b.days<=30}).sort(function(x,y){return x.b.days-y.b.days}).slice(0,5);
+    var bk=bl.length?bl.map(function(o){
+      var nm=o.u.charName||o.u.name,ini=nm.split(/\s+/).filter(Boolean).map(function(s){return s[0]}).join("").slice(0,2).toUpperCase();
+      var dt=o.b.date,when=o.b.days===0?"Heute 🎉":o.b.days===1?"Morgen":o.b.days<=7?WD[dt.getDay()]+", "+("0"+dt.getDate()).slice(-2)+"."+("0"+(dt.getMonth()+1)).slice(-2)+".":"in "+o.b.days+" Tagen";
+      if(o.b.age>0&&o.b.age<150)when+=" · wird "+o.b.age;
+      return el("div",{className:"bd"},[el("div",{className:"av",text:ini}),el("div",{},[el("b",{text:nm}),el("div",{className:"muted small",text:when})])]);
+    }):[el("p",{className:"muted",text:"In den nächsten 30 Tagen hat niemand Geburtstag."})];
+    var bdc=card("🎂 Bald Geburtstag",bk);
+    // 9 Zufallsrezept
+    var rc=null;
+    if(S.dishes.length){
+      if(!pick||!S.dishes.some(function(d){return d.id===pick}))pick=S.dishes[Math.floor(Math.random()*S.dishes.length)].id;
+      var d=S.dishes.find(function(x){return x.id===pick}),cnt=counts()[d.id]||0;
+      var ts=parseInt(String(d.id).slice(1),10),age=isFinite(ts)?Math.floor((Date.now()-ts)/864e5):999;
+      var info=plural(d.ingredients.length,"Zutat","Zutaten")+" · "+STATIONS[d.station]+(age<=7?" · neu "+(age<=0?"seit heute":age===1?"seit gestern":"seit "+age+" Tagen"):"")+(cnt?" · "+cnt+"× geplant":"");
+      rc=card("Was koche ich heute?",[el("div",{className:"dish"},[el("div",{className:"em",text:EM[d.station]||"🍽️"}),el("div",{},[el("b",{text:d.name}),el("div",{className:"muted small",text:info})])]),
+        el("div",{className:"row"},[btn("Anderes Rezept",function(){
+          if(S.dishes.length>1){var o;do{o=S.dishes[Math.floor(Math.random()*S.dishes.length)].id}while(o===pick);pick=o;}render();
+        }),btn("Auf die Liste",function(){setCount(d.id,cnt+1);toast(d.name+" ist auf der Liste ("+(cnt+1)+"×).");render();},"primary")])]);
+    }
+    // 10 Admin
+    var adm=null;
+    if(isA){
+      var np=S.ingredients.filter(function(m){return !hasPrice(m)}).length,ne=S.dishes.filter(function(d){return !(d.epPer>0)}).length;
+      var ak=[li("Zutaten ohne Preis",el("b",{text:String(np)})),li("Gerichte ohne EP-Angabe",el("b",{text:String(ne)}))];
+      if(!TOK)ak.push(li("Direktes Speichern",pill("nicht eingerichtet","low")));
+      var arow=el("div",{className:"row"},[btn("Zu „Was fehlt?“",function(){go("admin",function(){adminTab="missing";backTo=null;});})]);
+      if(!TOK)arow.appendChild(btn("Einstellungen",function(){go("admin",function(){adminTab="settings";backTo=null;});}));
+      ak.push(arow);
+      adm=card("Noch zu pflegen",ak,(np||ne||!TOK)?"warn":"");
+    }
+    function col(cls,items){return el("div",{className:cls},items.filter(Boolean));}
+    w.appendChild(el("div",{className:"sgrid"},[col("c8",[hero]),col("c4",[search,tiles]),col("c6",[lc,epc]),col("c6",[stc,pin,bdc]),col("c6",[rc]),col("c6",[adm])]));
   }
 
   function findIng(name){
