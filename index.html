@@ -193,16 +193,57 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
   }
   async function unseal(key,s){var a=unb64(s);return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM",iv:a.slice(0,12)},key,a.slice(12)));}
 
-  function counts(){try{return JSON.parse(localStorage.getItem("rp_c_"+me.name)||"{}")}catch(e){return {}}}
-  function setCount(id,v){var c=counts();c[id]=v;try{localStorage.setItem("rp_c_"+me.name,JSON.stringify(c))}catch(e){}}
-
-  function checks(){try{return JSON.parse(localStorage.getItem("rp_k_"+me.name)||"{}")}catch(e){return {}}}
-  function setCheck(k,v){var c=checks();if(v)c[k]=1;else delete c[k];try{localStorage.setItem("rp_k_"+me.name,JSON.stringify(c))}catch(e){}}
-  function clearChecks(){try{localStorage.removeItem("rp_k_"+me.name)}catch(e){}}
+  var L=null,pTimer=0,pBusy=false,pAgain=false;
+  function lkey(){return me.name.toLowerCase();}
+  function initLists(){
+    var c=S.lists&&S.lists[lkey()];
+    if(c){L={c:c.c||{},k:c.k||{},s:c.s||{},d:c.d||[]};return;}
+    var loc=null;try{loc=JSON.parse(localStorage.getItem("rp_l_"+me.name)||"null")}catch(e){}
+    if(loc&&loc.c){L=loc;}
+    else{
+      L={c:{},k:{},s:{},d:[]};
+      try{L.c=JSON.parse(localStorage.getItem("rp_c_"+me.name)||"{}")||{};L.k=JSON.parse(localStorage.getItem("rp_k_"+me.name)||"{}")||{};}catch(e){}
+      if(me.role==="admin"){
+        S.ingredients.forEach(function(m){if(m.stock>0)L.s[m.name]=m.stock;});
+        L.d=(S.stockDishes||[]).map(function(x){return {id:x.id,count:x.count||0}});
+      }
+    }
+    if(TOK&&(!S.ghTok||Object.keys(L.c).length||Object.keys(L.s).length||L.d.length))persist(true);
+  }
+  function persist(now){
+    try{localStorage.setItem("rp_l_"+me.name,JSON.stringify(L))}catch(e){}
+    if(!TOK)return;
+    clearTimeout(pTimer);pTimer=setTimeout(pushLists,now?0:1500);
+  }
+  async function pushLists(){
+    if(!TOK||!L)return false;
+    if(pBusy||saving){pAgain=true;return false;}
+    pBusy=true;
+    try{
+      for(var i=0;i<3;i++){
+        var st=Object.assign({},S);st.lists=Object.assign({},S.lists||{});st.lists[lkey()]=L;
+        if(!("ghTok" in st))st.ghTok=TOK;
+        var nf={v:1,users:F.users,data:await seal(DKkey,enc.encode(JSON.stringify(st)))};
+        try{await put(JSON.stringify(nf));S=st;F=nf;return true;}
+        catch(e){
+          if(e===409||e===422){await fetchFile();await openState(DKraw);me=findMe(me.name)||me;continue;}
+          toast(e===401?"Deine Listen konnten nicht gespeichert werden: Der GitHub-Schlüssel ist ungültig oder abgelaufen.":"Deine Listen konnten gerade nicht gespeichert werden. Sie bleiben auf diesem Gerät erhalten.",true);
+          return false;
+        }
+      }
+      return false;
+    }catch(e){return false;}
+    finally{pBusy=false;if(pAgain){pAgain=false;setTimeout(pushLists,300);}}
+  }
+  function counts(){return L?L.c:{};}
+  function setCount(id,v){if(v>0)L.c[id]=v;else delete L.c[id];persist();}
+  function checks(){return L?L.k:{};}
+  function setCheck(k,v){if(v)L.k[k]=1;else delete L.k[k];persist();}
+  function clearChecks(){L.k={};persist();}
+  function myStock(name){return L&&L.s[name]||0;}
   function resetCounts(){
     if(!confirm("Alle Anzahlen auf 0 setzen?"))return;
-    try{localStorage.removeItem("rp_c_"+me.name)}catch(e){}
-    clearChecks();render();
+    L.c={};clearChecks();render();
   }
   function packOf(m){var p=m&&m.pack;return p&&p.name&&p.size>1?p:null;}
   function singlePrice(m){return (m.usd||0)>0||(m.mxn||0)>0;}
@@ -273,7 +314,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
   }
   function keepSession(){try{sessionStorage.setItem("rp_sess",JSON.stringify({name:me.name,dk:b64(DKraw),kek:b64(KEKraw),tok:TOK}))}catch(e){}}
   function logout(){
-    me=null;S=null;DKraw=null;DKkey=null;KEKraw=null;TOK="";
+    clearTimeout(pTimer);if(L&&TOK&&me)pushLists();
+    me=null;S=null;L=null;DKraw=null;DKkey=null;KEKraw=null;TOK="";
     try{sessionStorage.removeItem("rp_sess")}catch(e){}
     view="start";msg="";render();
   }
@@ -293,6 +335,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     saving=true;
     try{
       Object.keys(S).forEach(function(k){if(!(k in st))st[k]=S[k];});
+      if(L){st.lists=Object.assign({},st.lists||{});st.lists[lkey()]=L;clearTimeout(pTimer);}
+      if(TOK&&!("ghTok" in st))st.ghTok=TOK;
       st.users=st.users||S.users;st.dishes=st.dishes||S.dishes;st.ingredients=st.ingredients||S.ingredients;st.stockDishes=st.stockDishes||S.stockDishes;
       var nf={v:1,users:fus||F.users,data:await seal(DKkey,enc.encode(JSON.stringify(st)))};
       var text=JSON.stringify(nf);
@@ -337,7 +381,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
       return;
     }
     if(sess){
-      try{await openState(unb64(sess.dk));KEKraw=unb64(sess.kek);me=findMe(sess.name);}catch(e){me=null;}
+      try{await openState(unb64(sess.dk));KEKraw=unb64(sess.kek);me=findMe(sess.name);if(me){if(S.ghTok)TOK=S.ghTok;initLists();}}catch(e){me=null;}
       if(!me){S=null;TOK="";try{sessionStorage.removeItem("rp_sess")}catch(e){}}
     }
     render();
@@ -390,7 +434,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
         if(TOK&&!SHA){try{await fetchFile()}catch(e){}}
         await openState(raw);
         var f=findMe(fu.name);if(!f)throw 0;
-        KEKraw=kb;me=f;keepSession();
+        if(S.ghTok&&S.ghTok!==TOK){TOK=S.ghTok;try{await fetchFile();await openState(raw);}catch(e){}}
+        KEKraw=kb;me=f;initLists();keepSession();
         view="start";msg="";render();
       }catch(e){
         S=null;TOK="";sb.disabled=false;sb.textContent="Anmelden";
@@ -453,7 +498,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     var c=counts(),ck=checks(),agg={},planned=0;
     S.dishes.forEach(function(d){var n=c[d.id]||0;if(!n)return;planned++;
       d.ingredients.forEach(function(i){var m=findIng(i.name)||{name:i.name},k=m.name.toLowerCase();
-        var a=agg[k]||(agg[k]={key:k,name:m.name,need:0,stock:m.stock||0,m:m});a.need+=i.qty*n;});});
+        var a=agg[k]||(agg[k]={key:k,name:m.name,need:0,stock:myStock(m.name),m:m});a.need+=i.qty*n;});});
     var lines=[],usd=0,miss=0,shops={},short=[];
     Object.keys(agg).forEach(function(k){var a=agg[k];
       if(a.need>a.stock)short.push(a);
@@ -497,7 +542,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     var tiles=el("div",{className:"tiles"},Object.keys(STATIONS).map(function(k){
       var n=S.dishes.filter(function(d){return d.station===k}).length;
       return tile(EM[k],STATIONS[k],n?plural(n,"Gericht","Gerichte"):"noch leer",function(){go("rezepte",function(){recipeTab=k;});});
-    }).concat([tile("📦","Bestand",D.short.length?plural(D.short.length,"Artikel","Artikel")+" knapp":D.planned?"alles da":"Übersicht",function(){go("listen",function(){listTab="bestand";});})]));
+    }).concat([tile("📦","Bestand",(function(){var n=L.d.filter(function(x){return (x.count||0)<=10&&S.dishes.some(function(d){return d.id===x.id})}).length;return n?plural(n,"Gericht","Gerichte")+" knapp":L.d.length?"alles genug da":"noch leer";})(),function(){go("listen",function(){listTab="bestand";});})]));
     // 4 Einkaufsliste
     var lc;
     if(!D.lines.length){
@@ -526,14 +571,15 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
         el("small",{text:o.ok?"ca. "+money(o.per,0)+" pro EP · Zutaten: "+o.d.ingredients.map(function(i){return i.name}).join(", "):"Preis noch unvollständig"})]));
     });
     var epc=card("Womit sammelst du EP am günstigsten?",epk);
-    // 6 Bestand
+    // 6 Bestand: nur Gerichte aus der eigenen Bestandsliste mit 10 oder weniger
+    var lowD=L.d.map(function(x){return {x:x,d:S.dishes.find(function(d){return d.id===x.id})}})
+      .filter(function(o){return o.d&&(o.x.count||0)<=10}).sort(function(x,y){return (x.x.count||0)-(y.x.count||0)||byName(x.d,y.d)});
     var sk=[];
-    if(D.planned&&!D.short.length)sk.push(el("p",{className:"muted",style:"margin:0 0 4px",text:"Für deine geplanten Gerichte ist alles da."}));
-    D.short.slice(0,5).forEach(function(a){sk.push(li(a.name,pill(fmt(a.stock)+" da · "+fmt(a.need)+" nötig","low")));});
-    S.stockDishes.filter(function(x){return x.count>0}).map(function(x){return {x:x,d:S.dishes.find(function(d){return d.id===x.id})}})
-      .filter(function(o){return o.d}).sort(function(x,y){return y.x.count-x.x.count}).slice(0,3)
-      .forEach(function(o){sk.push(li(o.d.name,pill(o.x.count+" fertig","okp")));});
-    if(!sk.length)sk.push(el("p",{className:"muted",text:"Plane Gerichte bei den Rezepten, dann siehst du hier, was im Bestand fehlt."}));
+    if(!L.d.length)sk.push(el("p",{className:"muted",text:"Deine Bestandsliste enthält noch keine Gerichte. Füge sie unter Listen → Bestandsliste hinzu, dann siehst du hier, was knapp wird."}));
+    else if(!lowD.length)sk.push(el("p",{className:"muted",text:"Alle Gerichte in deiner Bestandsliste haben mehr als 10 Stück."}));
+    lowD.slice(0,8).forEach(function(o){var n=o.x.count||0;sk.push(li(o.d.name,pill(n?n+" im Bestand":"leer","low")));});
+    if(lowD.length>8)sk.push(el("p",{className:"muted small",text:"… und "+(lowD.length-8)+" weitere."}));
+    if(L.d.length)sk.push(el("div",{className:"row"},[btn("Bestandsliste öffnen",function(){go("listen",function(){listTab="bestand";});})]));
     var stc=card("Knapp im Bestand",sk);
     // 7 Pinnwand
     var N=S.notice&&S.notice.text?S.notice:null,pin=null;
@@ -675,7 +721,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
       d.ingredients.forEach(function(i){
         var m=findIng(i.name)||{name:i.name};
         var k=m.name.toLowerCase();
-        var a=agg[k]||(agg[k]={key:k,name:m.name,need:0,usd:m.usd||0,mxn:m.mxn||0,wt:m.weight||0,stock:m.stock||0,m:m});
+        var a=agg[k]||(agg[k]={key:k,name:m.name,need:0,usd:m.usd||0,mxn:m.mxn||0,wt:m.weight||0,stock:myStock(m.name),m:m});
         a.need+=i.qty*n;
       });});
     var rows=Object.keys(agg).map(function(k){var a=agg[k];a.buy=useStock?Math.max(0,a.need-a.stock):a.need;return a;});
@@ -796,8 +842,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     async function store(v){
       var old=TOK,rec=Object.assign({},fileUser(me.name));
       delete rec.tok;
-      if(v){TOK=v;rec.tok=await seal(await aes(KEKraw),enc.encode(v));}
-      var ok=await save({},replaceRec(rec));
+      if(v)TOK=v;
+      var ok=await save({ghTok:v||null},replaceRec(rec));
       if(ok){if(!v)TOK="";keepSession();render();}else TOK=old;
     }
     var row=el("div",{className:"row"},[btn("Prüfen und speichern",function(){
@@ -809,7 +855,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     w.appendChild(el("div",{className:"card"},[el("h3",{text:"Direktes Speichern"}),
       el("p",{text:TOK?"Ein GitHub-Schlüssel ist hinterlegt. Änderungen werden direkt gespeichert.":"Noch kein GitHub-Schlüssel hinterlegt. Änderungen werden als data.json heruntergeladen."}),
       field(TOK?"Schlüssel ersetzen":"GitHub-Schlüssel",tk),row,err,
-      el("p",{className:"muted",text:"Der Schlüssel wird verschlüsselt mit deinem Passwort gespeichert und gilt auf jedem Gerät, auf dem du dich anmeldest."})]));
+      el("p",{className:"muted",text:"Der Schlüssel wird verschlüsselt in den Daten gespeichert und gilt für alle Benutzer, damit jeder seine eigene Einkaufs- und Bestandsliste speichern kann."})]));
     w.appendChild(el("div",{className:"card"},[el("h3",{text:"So bekommst du den Schlüssel"}),
       el("ol",{className:"steps"},[
         "Melde dich bei GitHub an und öffne github.com/settings/personal-access-tokens.",
@@ -830,7 +876,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
       if(u.role!=="admin")r.appendChild(btn("Löschen",function(){
         if(!confirm("Benutzer „"+u.name+"“ löschen?"))return;
         var k=u.name.toLowerCase();
-        save({users:S.users.filter(function(x){return x.name!==u.name})},F.users.filter(function(x){return x.name.toLowerCase()!==k}));
+        var ls=Object.assign({},S.lists||{});delete ls[k];
+        save({users:S.users.filter(function(x){return x.name!==u.name}),lists:ls},F.users.filter(function(x){return x.name.toLowerCase()!==k}));
       },"danger"));
       kids.push(r);
       w.appendChild(el("div",{className:"card"},kids));
@@ -935,14 +982,15 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
 
   function stockView(w){
     w.appendChild(el("h2",{text:"Bestandsliste"}));
-    var isA=me.role==="admin",items=S.ingredients,pending={},dirty=false;
-    var dl=S.stockDishes.map(function(x){return {id:x.id,count:x.count||0}});
+    w.appendChild(el("p",{className:"muted",text:"Das ist deine eigene Bestandsliste. Andere Benutzer sehen und ändern sie nicht."}));
+    var isA=true,items=S.ingredients,pending={},dirty=false;
+    var dl=L.d.map(function(x){return {id:x.id,count:x.count||0}});
     var info=el("p",{className:"muted",role:"status"});
     var dbox=el("div",{className:"card"}),ibox=el("div",{className:"card"});
     function byName(a,b){return a.name.localeCompare(b.name,"de")}
     function dishById(id){return S.dishes.find(function(d){return d.id===id})}
     function term(){return (searchTerm.stock||"").trim().toLowerCase();}
-    function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:(m.stock||0);}
+    function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:myStock(m.name);}
     function countInput(label,val,fn){
       var i=el("input",{type:"number",min:"0",step:"1",value:val,className:"qty"});
       i.setAttribute("aria-label",label);
@@ -994,10 +1042,10 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     if(isA){
       w.appendChild(el("div",{className:"row"},[btn("Bestand speichern",function(){
         if(!dirty){info.textContent="Keine Änderungen.";return;}
-        save({
-          ingredients:S.ingredients.map(function(m){return pending.hasOwnProperty(m.name)?Object.assign({},m,{stock:pending[m.name]}):m;}),
-          stockDishes:dl
-        });
+        Object.keys(pending).forEach(function(k){if(pending[k]>0)L.s[k]=pending[k];else delete L.s[k];});
+        L.d=dl.map(function(x){return {id:x.id,count:x.count||0}});pending={};dirty=false;
+        persist(true);
+        toast(TOK?"Bestand gespeichert.":"Bestand auf diesem Gerät gespeichert.");
       },"primary")]));
       w.appendChild(info);
     }
@@ -1051,7 +1099,12 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
       if(ex&&ex.name!==name)ds=S.dishes.map(function(d){
         return Object.assign({},d,{ingredients:d.ingredients.map(function(i){return i.name===ex.name?{name:name,qty:i.qty}:i})});
       });
-      save({ingredients:ings,dishes:ds});
+      var lists=S.lists;
+      if(ex&&ex.name!==name){
+        lists={};Object.keys(S.lists||{}).forEach(function(u){var e=Object.assign({},S.lists[u]),s=Object.assign({},e.s||{});if(s.hasOwnProperty(ex.name)){s[name]=s[ex.name];delete s[ex.name];}e.s=s;lists[u]=e;});
+        if(L&&L.s.hasOwnProperty(ex.name)){L.s[name]=L.s[ex.name];delete L.s[ex.name];}
+      }
+      save({ingredients:ings,dishes:ds,lists:lists});
     },"primary")]);
     if(ex)row.appendChild(btn("Abbrechen",function(){ingEdit=null;if(backTo){adminTab=backTo;backTo=null;}render();}));
     w.appendChild(el("div",{className:"card"},[el("h3",{text:ex?"Zutat bearbeiten":"Neue Zutat"}),
