@@ -154,6 +154,21 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
   .stats{grid-template-columns:repeat(3,minmax(0,170px))}
   .sbox{margin-top:22px}
 }
+.step{display:inline-flex;align-items:center;gap:6px}
+.step .qty{width:68px;min-height:40px;padding:6px 8px}
+button.stp{width:40px;height:40px;min-height:40px;padding:0;font-size:1.3rem;line-height:1;border-radius:50%;flex:none}
+.cook{margin-top:14px;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+button.sync{display:inline-flex;align-items:center;gap:6px;border:0;background:none;min-height:36px;padding:6px 8px;font-size:.76rem;color:var(--muted);cursor:default}
+button.sync:hover{background:none}
+button.sync i{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+button.sync span{display:none}
+button.sync.ok{color:#2f9e44}
+button.sync.dirty{color:#E8590C;cursor:pointer}
+button.sync.saving{color:var(--muted)}
+button.sync.saving i{animation:pulse 1s infinite}
+button.sync.err{color:var(--danger);cursor:pointer}
+@keyframes pulse{50%{opacity:.25}}
+@media(min-width:720px){button.sync span{display:inline}}
 </style>
 </head>
 <body>
@@ -193,12 +208,24 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
   }
   async function unseal(key,s){var a=unb64(s);return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM",iv:a.slice(0,12)},key,a.slice(12)));}
 
-  var L=null,pTimer=0,pBusy=false,pAgain=false;
+  var L=null,pTimer=0,pBusy=false,pAgain=false,pDirty=false,syncSt="ok",syncEl=null,DELAY=15000;
+  function setSync(s){syncSt=s;applySync();}
+  function applySync(){
+    if(!syncEl)return;
+    var st=!TOK?"local":syncSt,T={ok:"Gespeichert",dirty:"Ungespeichert",saving:"Speichert …",err:"Nicht gespeichert – erneut versuchen",local:"Nur auf diesem Gerät"};
+    syncEl.className="sync "+st;syncEl.title=T[st];syncEl.setAttribute("aria-label",T[st]);
+    syncEl.textContent="";syncEl.appendChild(el("i",{}));syncEl.appendChild(el("span",{text:T[st]}));
+  }
+  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"&&pDirty&&TOK)pushLists();});
   function lkey(){return me.name.toLowerCase();}
   function initLists(){
     var c=S.lists&&S.lists[lkey()];
-    if(c){L={c:c.c||{},k:c.k||{},s:c.s||{},d:c.d||[]};return;}
     var loc=null;try{loc=JSON.parse(localStorage.getItem("rp_l_"+me.name)||"null")}catch(e){}
+    if(c){
+      L={c:c.c||{},k:c.k||{},s:c.s||{},d:c.d||[],t:c.t||0};
+      if(loc&&loc.c&&(loc.t||0)>L.t){L=loc;if(TOK)persist(true);}
+      return;
+    }
     if(loc&&loc.c){L=loc;}
     else{
       L={c:{},k:{},s:{},d:[]};
@@ -211,29 +238,40 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     if(TOK&&(!S.ghTok||Object.keys(L.c).length||Object.keys(L.s).length||L.d.length))persist(true);
   }
   function persist(now){
+    L.t=Date.now();
     try{localStorage.setItem("rp_l_"+me.name,JSON.stringify(L))}catch(e){}
-    if(!TOK)return;
-    clearTimeout(pTimer);pTimer=setTimeout(pushLists,now?0:1500);
+    if(!TOK){applySync();return;}
+    pDirty=true;setSync("dirty");
+    clearTimeout(pTimer);pTimer=setTimeout(pushLists,now?0:DELAY);
   }
   async function pushLists(){
     if(!TOK||!L)return false;
     if(pBusy||saving){pAgain=true;return false;}
-    pBusy=true;
+    pBusy=true;clearTimeout(pTimer);setSync("saving");
     try{
       for(var i=0;i<3;i++){
         var st=Object.assign({},S);st.lists=Object.assign({},S.lists||{});st.lists[lkey()]=L;
         if(!("ghTok" in st))st.ghTok=TOK;
         var nf={v:1,users:F.users,data:await seal(DKkey,enc.encode(JSON.stringify(st)))};
-        try{await put(JSON.stringify(nf));S=st;F=nf;return true;}
+        try{await put(JSON.stringify(nf));S=st;F=nf;pDirty=false;setSync("ok");return true;}
         catch(e){
           if(e===409||e===422){await fetchFile();await openState(DKraw);me=findMe(me.name)||me;continue;}
+          setSync("err");
           toast(e===401?"Deine Listen konnten nicht gespeichert werden: Der GitHub-Schlüssel ist ungültig oder abgelaufen.":"Deine Listen konnten gerade nicht gespeichert werden. Sie bleiben auf diesem Gerät erhalten.",true);
           return false;
         }
       }
-      return false;
-    }catch(e){return false;}
+      setSync("err");return false;
+    }catch(e){setSync("err");return false;}
     finally{pBusy=false;if(pAgain){pAgain=false;setTimeout(pushLists,300);}}
+  }
+  function stepper(label,val,onSet){
+    var i=el("input",{type:"number",min:"0",step:"1",value:val,className:"qty",inputMode:"numeric"});i.setAttribute("aria-label",label);
+    function set(v){v=Math.max(0,Math.floor(v));i.value=v;onSet(v);}
+    var m=btn("−",function(){set(num(i.value)-1);},"stp"),p=btn("+",function(){set(num(i.value)+1);},"stp");
+    m.setAttribute("aria-label",label+" verringern");p.setAttribute("aria-label",label+" erhöhen");
+    i.oninput=function(){onSet(Math.max(0,Math.floor(num(i.value))));};
+    return el("span",{className:"step"},[m,i,p]);
   }
   function counts(){return L?L.c:{};}
   function setCount(id,v){if(v>0)L.c[id]=v;else delete L.c[id];persist();}
@@ -313,8 +351,10 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     return {rec:rec,kb:kb};
   }
   function keepSession(){try{sessionStorage.setItem("rp_sess",JSON.stringify({name:me.name,dk:b64(DKraw),kek:b64(KEKraw),tok:TOK}))}catch(e){}}
-  function logout(){
-    clearTimeout(pTimer);if(L&&TOK&&me)pushLists();
+  async function logout(){
+    clearTimeout(pTimer);
+    if(L&&TOK&&me&&pDirty){toast("Speichere deine Listen …");await pushLists();}
+    pDirty=false;
     me=null;S=null;L=null;DKraw=null;DKkey=null;KEKraw=null;TOK="";
     try{sessionStorage.removeItem("rp_sess")}catch(e){}
     view="start";msg="";render();
@@ -354,7 +394,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
             (e===403||e===404)?"Der GitHub-Schlüssel hat keine Schreibrechte für das Repo.":"Speichern hat nicht geklappt. Bitte versuche es noch einmal.",true);
           return false;
         }
-        toast("Gespeichert.");
+        toast("Gespeichert.");pDirty=false;setSync("ok");
       }else{
         var blob=new Blob([text],{type:"application/json"});
         var link=document.createElement("a");link.href=URL.createObjectURL(blob);link.download=FILE;
@@ -402,9 +442,10 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     var top=el("header",{className:"top"},[el("div",{className:"wrap"},[
       el("div",{className:"brand"},[icon(),el("strong",{text:"Kochübersicht Homestate"})]),
       nav,
-      el("div",{className:"acts"},[el("span",{className:"who",text:me.name}),
+      el("div",{className:"acts"},[(syncEl=el("button",{type:"button",className:"sync"})),el("span",{className:"who",text:me.name}),
         btn(theme()==="dark"?"Hell":"Dunkel",toggleTheme,"link"),btn("Abmelden",logout,"link")])
     ])]);
+    syncEl.onclick=function(){if(syncSt==="err"||syncSt==="dirty")pushLists();};applySync();
     root.appendChild(top);
     var w=el("main",{className:view==="start"?"wrap wide":"wrap"});
     if(view==="start")startView(w);
@@ -653,7 +694,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     var t=[];
     if(d.weight>0)t.push("Fertiges Gericht: "+kg(d.weight));
     if(d.portions>0)t.push("Ergibt "+d.portions+(d.portions===1?" Portion":" Portionen"));
-    if(d.epPer>0)t.push("Für 1 EP herstellen: "+d.epPer+"×");
+    if(d.epPer>0)t.push(d.epPer+"× herstellen für 1 EP");
     return t.length?el("p",{className:"muted",text:t.join(" · ")}):el("span");
   }
   var searchTerm={};
@@ -667,6 +708,19 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     inp.oninput=function(){searchTerm[key]=inp.value;fill();};
     return inp;
   }
+  var onlyPlanned=false;
+  function cooked(d,n){
+    d.ingredients.forEach(function(i){
+      var m=findIng(i.name),nm=m?m.name:i.name,v=Math.max(0,Math.round((myStock(nm)-i.qty*n)*1000)/1000);
+      if(v>0)L.s[nm]=v;else delete L.s[nm];
+    });
+    var e=L.d.find(function(x){return x.id===d.id});
+    if(e)e.count=(e.count||0)+n;else{e={id:d.id,count:n};L.d.push(e);}
+    var c=L.c[d.id]||0;if(c){c=Math.max(0,c-n);if(c)L.c[d.id]=c;else delete L.c[d.id];}
+    persist();
+    toast(n+"× "+d.name+" gekocht. Zutaten abgezogen, im Bestand jetzt "+e.count+" Stück.");
+    render();
+  }
   function stationView(w,st){
     w.appendChild(el("h2",{text:"Rezepte – "+STATIONS[st]}));
     var all=S.dishes.filter(function(d){return d.station===st}).sort(function(a,b){return a.name.localeCompare(b.name,"de")});
@@ -677,25 +731,36 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
       var ds=all.filter(function(d){return matches(d,searchTerm[st])});
       if(!ds.length){box.appendChild(el("p",{className:"muted",text:"Kein Gericht gefunden."}));return;}
       var c=counts();
+      if(onlyPlanned)ds=ds.filter(function(d){return (c[d.id]||0)>0});
+      if(!ds.length){box.appendChild(el("p",{className:"muted",text:"Hier ist noch nichts geplant. Nimm den Haken bei „Nur geplante“ weg, um alle Gerichte zu sehen."}));return;}
       ds.forEach(function(d){
-        var q=el("input",{type:"number",min:"0",step:"1",value:c[d.id]||0,className:"qty"});
-        q.setAttribute("aria-label","Anzahl "+d.name);
-        var epLine=el("p",{className:"muted epline",role:"status"});
-        function upd(){
-          var n=Math.max(0,Math.floor(num(q.value))),r=d.epPer>0?n%d.epPer:0;
-          epLine.textContent=(d.epPer>0&&n>0)?"Ergibt "+Math.floor(n/d.epPer)+" EP"+(r?" · noch "+(d.epPer-r)+"× bis zum nächsten EP":""):"";
+        var cook=el("div",{className:"cook"});cook.hidden=true;
+        function fillCook(){
+          cook.textContent="";
+          var n=Math.max(1,counts()[d.id]||1),info=el("p",{className:"muted small"}),go=btn("Abbuchen",function(){if(n>0)cooked(d,n);},"primary");
+          function upd(){
+            go.disabled=n<1;
+            var miss=d.ingredients.filter(function(i){var m=findIng(i.name);return myStock(m?m.name:i.name)<i.qty*n}).map(function(i){var m=findIng(i.name),nm=m?m.name:i.name;return nm+" ("+fmt(myStock(nm))+" da, "+fmt(i.qty*n)+" nötig)"});
+            info.textContent=miss.length?"Nicht genug im Bestand: "+miss.join(", ")+". Diese Zutaten werden auf 0 gesetzt.":"Zieht die Zutaten von deinem Bestand ab und legt "+d.name+" in deine Bestandsliste.";
+            info.className=miss.length?"danger small":"muted small";
+          }
+          cook.appendChild(el("div",{className:"row"},[el("span",{text:"Wie oft gekocht?",style:"font-weight:600"}),stepper("Wie oft gekocht: "+d.name,n,function(v){n=v;upd();})]));
+          cook.appendChild(info);
+          cook.appendChild(el("div",{className:"row"},[go,btn("Abbrechen",function(){cook.hidden=true;})]));
+          upd();
         }
-        q.oninput=function(){setCount(d.id,Math.max(0,Math.floor(num(q.value))));upd();};
-        upd();
+        var cb=btn("Gekocht …",function(){cook.hidden=!cook.hidden;if(!cook.hidden)fillCook();});
         box.appendChild(el("div",{className:"card"},[
           el("h3",{text:d.name}),ingList(d,true),epInfo(d),
-          el("div",{className:"row"},[el("span",{text:"Anzahl",style:"font-weight:600"}),q,epLine])
+          el("div",{className:"row"},[el("span",{text:"Geplant",style:"font-weight:600"}),stepper("Anzahl "+d.name,c[d.id]||0,function(v){setCount(d.id,v);}),cb]),
+          cook
         ]));
       });
     }
     if(all.length){
       w.appendChild(searchBox(st,fill));
-      w.appendChild(el("div",{className:"row",style:"margin-top:0"},[btn("Alle Anzahlen auf 0",resetCounts)]));
+      var op=el("input",{type:"checkbox",checked:onlyPlanned});op.onchange=function(){onlyPlanned=op.checked;fill();};
+      w.appendChild(el("div",{className:"row",style:"margin-top:0"},[el("label",{className:"chk"},[op,"Nur geplante"]),btn("Alle Anzahlen auf 0",resetCounts)]));
     }
     w.appendChild(box);fill();
   }
@@ -715,9 +780,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
   }
   function listView(w){
     w.appendChild(el("h2",{text:"Einkaufsliste"}));
-    var c=counts(),agg={},ep=0;
+    var c=counts(),agg={};
     S.dishes.forEach(function(d){var n=c[d.id]||0;if(!n)return;
-      if(d.epPer>0)ep+=Math.floor(n/d.epPer);
       d.ingredients.forEach(function(i){
         var m=findIng(i.name)||{name:i.name};
         var k=m.name.toLowerCase();
@@ -729,7 +793,8 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     var sc=el("input",{type:"checkbox",checked:useStock});
     sc.onchange=function(){useStock=sc.checked;render();};
     w.appendChild(el("div",{className:"row"},[el("label",{className:"chk"},[sc,"Bestand abziehen"])]));
-    w.appendChild(el("div",{className:"row"},[btn("Haken entfernen",function(){clearChecks();render();}),btn("Alle Anzahlen auf 0",resetCounts)]));
+    var actions=el("div",{className:"row"});w.appendChild(actions);
+    w.appendChild(el("p",{className:"muted small",text:"Hake ab, was du gekauft hast, und tippe dann auf „Einkauf erledigt“. Die Mengen werden in deinen Bestand gebucht."}));
     var buy=rows.filter(function(r){return r.buy>0}),covered=rows.filter(function(r){return r.buy<=0}).sort(byName);
     var shops={},gu=0,gm=0,gw=0,gpu=0,miss=0,ck=checks();
     function line(shop,o){(shops[shop||"Kein Shop"]=shops[shop||"Kein Shop"]||[]).push(o);}
@@ -753,7 +818,10 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
         if(split)q.push(el("div",{className:"muted",text:"dazu "+fmt(pl.singles)+"× einzeln bei "+(r.m.shop||"Kein Shop")}));
         if(note)q.push(el("div",{className:"muted",text:note}));
         if(r.wt>0)g.push(el("div",{className:"muted",text:kg(r.wt*pu)}));
-        line(pShop,{key:r.key+"#g",name:r.name,q:q,e:e,g:g});
+        var both=pl.singles&&!split;
+        line(pShop,{key:r.key+"#g",name:r.name,q:q,e:e,g:g,ing:r.name,units:both?pl.units:pl.packs*pk.size,
+          usd:pl.packs*(pk.usd||0)+(both?pl.singles*r.usd:0),priced:both?pl.priced:pok,
+          txt:fmt(pl.packs)+"× "+pk.name+(both?" + "+fmt(pl.singles)+"× "+r.name+" einzeln":"")+(pk.name.indexOf(r.name)<0?" ("+r.name+")":"")});
       }
       if(pl.singles&&(!pl.packs||split)){
         var ok=singlePrice(r.m);
@@ -762,10 +830,33 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
         else if(note)q2.push(el("div",{className:"muted",text:note}));
         var e2=[el("div",{text:ok?money(r.usd,r.mxn):"Preis fehlt"})],g2=[el("div",{text:ok?money(pl.singles*r.usd,pl.singles*r.mxn):"–"})];
         if(r.wt>0){e2.push(el("div",{className:"muted",text:kg(r.wt)}));g2.push(el("div",{className:"muted",text:kg(r.wt*pl.singles)}));}
-        line(r.m.shop,{key:r.key,name:r.name,q:q2,e:e2,g:g2});
+        line(r.m.shop,{key:r.key,name:r.name,q:q2,e:e2,g:g2,ing:r.name,units:pl.singles,usd:pl.singles*r.usd,priced:ok,
+          txt:fmt(pl.singles)+"× "+r.name+(split?" (einzeln)":"")});
       }
     });
     if(!buy.length)w.appendChild(el("div",{className:"card"},[el("p",{text:"Alles Nötige ist schon im Bestand."})]));
+    function allLines(){var o=[];Object.keys(shops).forEach(function(s){shops[s].forEach(function(x){o.push(x)})});return o;}
+    actions.appendChild(btn("Einkauf erledigt",function(){
+      var ck=checks(),sel=allLines().filter(function(o){return ck[o.key]});
+      if(!sel.length){toast("Hake zuerst ab, was du gekauft hast.",true);return;}
+      if(!confirm(plural(sel.length,"abgehakte Position","abgehakte Positionen")+" in deinen Bestand buchen?"))return;
+      sel.forEach(function(o){L.s[o.ing]=Math.round(((L.s[o.ing]||0)+o.units)*1000)/1000;delete L.k[o.key];});
+      persist();
+      toast("Eingebucht: "+sel.map(function(o){return fmt(o.units)+"× "+o.ing}).join(", ")+".");
+      render();
+    },"primary"));
+    actions.appendChild(btn("Als Text kopieren",function(){
+      var ck=checks(),out=["Einkaufsliste – "+(me.charName||me.name),""],n=0,usd=0,mp=0;
+      Object.keys(shops).sort().forEach(function(s){
+        var open=shops[s].filter(function(o){return !ck[o.key]}).sort(byName);if(!open.length)return;
+        out.push(s+":");open.forEach(function(o){out.push("• "+o.txt);usd+=o.usd;if(!o.priced)mp++;});out.push("");n+=open.length;
+      });
+      if(!n){toast("Alles ist abgehakt – es gibt nichts mehr zu kopieren.",true);return;}
+      out.push("Gesamt: "+money(usd,0)+(mp?" (bei "+plural(mp,"Position","Positionen")+" fehlt der Preis)":""));
+      copyText(out.join("\n")).then(function(ok){toast(ok?"Liste kopiert – du kannst sie jetzt z. B. in Discord einfügen.":"Kopieren hat nicht geklappt.",!ok);});
+    }));
+    actions.appendChild(btn("Haken entfernen",function(){clearChecks();render();}));
+    actions.appendChild(btn("Alle Anzahlen auf 0",resetCounts));
     Object.keys(shops).sort().forEach(function(s){
       var hd=el("tr",{},["","Zutat","Menge","Einzeln","Gesamt"].map(function(x){return el("th",{text:x})}));
       hd.firstChild.setAttribute("aria-label","Abgehakt");
@@ -788,10 +879,16 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     if(gm>0)tot.push(el("p",{className:"muted",text:"Davon auch in Pesos erhältlich: "+money(0,gm)+(gpu>0?" statt "+money(gpu,0):"")}));
     if(miss)tot.push(el("p",{className:"danger",text:"Unvollständig: Bei "+miss+(miss===1?" Zutat":" Zutaten")+" fehlt der Preis."}));
     tot.push(el("p",{},[el("strong",{text:"Gesamtgewicht: "+kg(gw)})]));
-    if(ep>0)tot.push(el("p",{},[el("strong",{text:"Erfahrungspunkte: "+ep+" EP"})]));
     w.appendChild(el("div",{className:"card"},tot));
   }
 
+  async function copyText(t){
+    try{await navigator.clipboard.writeText(t);return true;}
+    catch(e){
+      var ta=el("textarea",{value:t});ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();
+      var ok=false;try{ok=document.execCommand("copy");}catch(x){}ta.remove();return ok;
+    }
+  }
   function adminView(w){
     var t=el("div",{className:"seg"});
     [["users","Benutzer"],["dishes","Gerichte"],["dishform","Neues Gericht"],["ingredients","Zutaten"],["missing","Was fehlt?"],["settings","Einstellungen"]].forEach(function(x){
@@ -992,10 +1089,7 @@ button.tile:hover{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
     function term(){return (searchTerm.stock||"").trim().toLowerCase();}
     function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:myStock(m.name);}
     function countInput(label,val,fn){
-      var i=el("input",{type:"number",min:"0",step:"1",value:val,className:"qty"});
-      i.setAttribute("aria-label",label);
-      i.oninput=function(){fn(Math.max(0,Math.floor(num(i.value))));dirty=true;info.textContent="";};
-      return i;
+      return stepper(label,val,function(v){fn(v);dirty=true;info.textContent="";});
     }
     function fillD(){
       dbox.textContent="";
