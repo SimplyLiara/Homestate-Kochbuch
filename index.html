@@ -169,6 +169,8 @@ button.sync.saving i{animation:pulse 1s infinite}
 button.sync.err{color:var(--danger);cursor:pointer}
 @keyframes pulse{50%{opacity:.25}}
 @media(min-width:720px){button.sync span{display:inline}}
+.srow.pk1{border-bottom:0;padding-bottom:4px}
+.srow.pk2{padding-top:4px;padding-left:16px}
 </style>
 </head>
 <body>
@@ -222,13 +224,13 @@ button.sync.err{color:var(--danger);cursor:pointer}
     var c=S.lists&&S.lists[lkey()];
     var loc=null;try{loc=JSON.parse(localStorage.getItem("rp_l_"+me.name)||"null")}catch(e){}
     if(c){
-      L={c:c.c||{},k:c.k||{},s:c.s||{},d:c.d||[],t:c.t||0};
+      L={c:c.c||{},k:c.k||{},s:c.s||{},p:c.p||{},d:c.d||[],t:c.t||0};
       if(loc&&loc.c&&(loc.t||0)>L.t){L=loc;if(TOK)persist(true);}
       return;
     }
     if(loc&&loc.c){L=loc;}
     else{
-      L={c:{},k:{},s:{},d:[]};
+      L={c:{},k:{},s:{},p:{},d:[]};
       try{L.c=JSON.parse(localStorage.getItem("rp_c_"+me.name)||"{}")||{};L.k=JSON.parse(localStorage.getItem("rp_k_"+me.name)||"{}")||{};}catch(e){}
       if(me.role==="admin"){
         S.ingredients.forEach(function(m){if(m.stock>0)L.s[m.name]=m.stock;});
@@ -278,7 +280,22 @@ button.sync.err{color:var(--danger);cursor:pointer}
   function checks(){return L?L.k:{};}
   function setCheck(k,v){if(v)L.k[k]=1;else delete L.k[k];persist();}
   function clearChecks(){L.k={};persist();}
-  function myStock(name){return L&&L.s[name]||0;}
+  function packs(){if(!L.p)L.p={};return L.p;}
+  function looseStock(name){return L&&L.s[name]||0;}
+  function packStock(name){return L&&L.p&&L.p[name]||0;}
+  function myStock(name){var pk=packOf(findIng(name));return looseStock(name)+(pk?packStock(name)*pk.size:0);}
+  function takePlan(name,q){
+    var s=looseStock(name),pk=packOf(findIng(name)),pc=pk?packStock(name):0,open=0;
+    if(s<q&&pk)open=Math.min(pc,Math.ceil((q-s)/pk.size));
+    var rest=Math.max(0,Math.round((s+open*(pk?pk.size:0)-q)*1000)/1000);
+    return {open:open,pk:pk,loose:rest,packs:pc-open,short:myStock(name)<q};
+  }
+  function takeUnits(name,q){
+    var t=takePlan(name,q),P=packs();
+    if(t.loose>0)L.s[name]=t.loose;else delete L.s[name];
+    if(t.packs>0)P[name]=t.packs;else delete P[name];
+    return t;
+  }
   function resetCounts(){
     if(!confirm("Alle Anzahlen auf 0 setzen?"))return;
     L.c={};clearChecks();render();
@@ -711,8 +728,7 @@ button.sync.err{color:var(--danger);cursor:pointer}
   var onlyPlanned=false;
   function cooked(d,n){
     d.ingredients.forEach(function(i){
-      var m=findIng(i.name),nm=m?m.name:i.name,v=Math.max(0,Math.round((myStock(nm)-i.qty*n)*1000)/1000);
-      if(v>0)L.s[nm]=v;else delete L.s[nm];
+      var m=findIng(i.name),nm=m?m.name:i.name;takeUnits(nm,i.qty*n);
     });
     var e=L.d.find(function(x){return x.id===d.id});
     if(e)e.count=(e.count||0)+n;else{e={id:d.id,count:n};L.d.push(e);}
@@ -741,7 +757,8 @@ button.sync.err{color:var(--danger);cursor:pointer}
           function upd(){
             go.disabled=n<1;
             var miss=d.ingredients.filter(function(i){var m=findIng(i.name);return myStock(m?m.name:i.name)<i.qty*n}).map(function(i){var m=findIng(i.name),nm=m?m.name:i.name;return nm+" ("+fmt(myStock(nm))+" da, "+fmt(i.qty*n)+" nötig)"});
-            info.textContent=miss.length?"Nicht genug im Bestand: "+miss.join(", ")+". Diese Zutaten werden auf 0 gesetzt.":"Zieht die Zutaten von deinem Bestand ab und legt "+d.name+" in deine Bestandsliste.";
+            var opened=d.ingredients.map(function(i){var m=findIng(i.name),t=takePlan(m?m.name:i.name,i.qty*n);return t.open?fmt(t.open)+"× "+t.pk.name:""}).filter(Boolean);
+            info.textContent=(miss.length?"Nicht genug im Bestand: "+miss.join(", ")+". Diese Zutaten werden auf 0 gesetzt.":"Zieht die Zutaten von deinem Bestand ab und legt "+d.name+" in deine Bestandsliste.")+(opened.length?" Dafür wird geöffnet: "+opened.join(", ")+".":"");
             info.className=miss.length?"danger small":"muted small";
           }
           cook.appendChild(el("div",{className:"row"},[el("span",{text:"Wie oft gekocht?",style:"font-weight:600"}),stepper("Wie oft gekocht: "+d.name,n,function(v){n=v;upd();})]));
@@ -819,7 +836,7 @@ button.sync.err{color:var(--danger);cursor:pointer}
         if(note)q.push(el("div",{className:"muted",text:note}));
         if(r.wt>0)g.push(el("div",{className:"muted",text:kg(r.wt*pu)}));
         var both=pl.singles&&!split;
-        line(pShop,{key:r.key+"#g",name:r.name,q:q,e:e,g:g,ing:r.name,units:both?pl.units:pl.packs*pk.size,
+        line(pShop,{key:r.key+"#g",name:r.name,q:q,e:e,g:g,ing:r.name,units:both?pl.units:pl.packs*pk.size,bp:pl.packs,bs:both?pl.singles:0,pn:pk.name,
           usd:pl.packs*(pk.usd||0)+(both?pl.singles*r.usd:0),priced:both?pl.priced:pok,
           txt:fmt(pl.packs)+"× "+pk.name+(both?" + "+fmt(pl.singles)+"× "+r.name+" einzeln":"")+(pk.name.indexOf(r.name)<0?" ("+r.name+")":"")});
       }
@@ -830,7 +847,7 @@ button.sync.err{color:var(--danger);cursor:pointer}
         else if(note)q2.push(el("div",{className:"muted",text:note}));
         var e2=[el("div",{text:ok?money(r.usd,r.mxn):"Preis fehlt"})],g2=[el("div",{text:ok?money(pl.singles*r.usd,pl.singles*r.mxn):"–"})];
         if(r.wt>0){e2.push(el("div",{className:"muted",text:kg(r.wt)}));g2.push(el("div",{className:"muted",text:kg(r.wt*pl.singles)}));}
-        line(r.m.shop,{key:r.key,name:r.name,q:q2,e:e2,g:g2,ing:r.name,units:pl.singles,usd:pl.singles*r.usd,priced:ok,
+        line(r.m.shop,{key:r.key,name:r.name,q:q2,e:e2,g:g2,ing:r.name,units:pl.singles,bp:0,bs:pl.singles,usd:pl.singles*r.usd,priced:ok,
           txt:fmt(pl.singles)+"× "+r.name+(split?" (einzeln)":"")});
       }
     });
@@ -840,9 +857,14 @@ button.sync.err{color:var(--danger);cursor:pointer}
       var ck=checks(),sel=allLines().filter(function(o){return ck[o.key]});
       if(!sel.length){toast("Hake zuerst ab, was du gekauft hast.",true);return;}
       if(!confirm(plural(sel.length,"abgehakte Position","abgehakte Positionen")+" in deinen Bestand buchen?"))return;
-      sel.forEach(function(o){L.s[o.ing]=Math.round(((L.s[o.ing]||0)+o.units)*1000)/1000;delete L.k[o.key];});
+      var P=packs(),txt=[];
+      sel.forEach(function(o){
+        if(o.bp){P[o.ing]=(P[o.ing]||0)+o.bp;txt.push(fmt(o.bp)+"× "+o.pn);}
+        if(o.bs){L.s[o.ing]=Math.round(((L.s[o.ing]||0)+o.bs)*1000)/1000;txt.push(fmt(o.bs)+"× "+o.ing);}
+        delete L.k[o.key];
+      });
       persist();
-      toast("Eingebucht: "+sel.map(function(o){return fmt(o.units)+"× "+o.ing}).join(", ")+".");
+      toast("Eingebucht: "+txt.join(", ")+".");
       render();
     },"primary"));
     actions.appendChild(btn("Als Text kopieren",function(){
@@ -1087,7 +1109,9 @@ button.sync.err{color:var(--danger);cursor:pointer}
     function byName(a,b){return a.name.localeCompare(b.name,"de")}
     function dishById(id){return S.dishes.find(function(d){return d.id===id})}
     function term(){return (searchTerm.stock||"").trim().toLowerCase();}
-    function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:myStock(m.name);}
+    var pendingP={};
+    function cur(m){return pending.hasOwnProperty(m.name)?pending[m.name]:looseStock(m.name);}
+    function curP(m){return pendingP.hasOwnProperty(m.name)?pendingP[m.name]:packStock(m.name);}
     function countInput(label,val,fn){
       return stepper(label,val,function(v){fn(v);dirty=true;info.textContent="";});
     }
@@ -1124,11 +1148,19 @@ button.sync.err{color:var(--danger);cursor:pointer}
       ibox.appendChild(el("h3",{text:"Zutaten"}));
       if(!items.length){ibox.appendChild(el("p",{className:"muted",text:"Noch keine Zutaten vorhanden. Der Admin legt sie im Tab „Zutaten“ an."}));return;}
       var t=term();
-      var ms=items.slice().sort(byName).filter(function(m){return !t||m.name.toLowerCase().indexOf(t)>-1});
+      var ms=items.slice().sort(byName).filter(function(m){var pk=packOf(m);return !t||m.name.toLowerCase().indexOf(t)>-1||(pk&&pk.name.toLowerCase().indexOf(t)>-1)});
       if(!ms.length){ibox.appendChild(el("p",{className:"muted",text:"Keine Zutat gefunden."}));return;}
       ms.forEach(function(m){
-        var right=isA?countInput("Bestand "+m.name,cur(m),function(v){pending[m.name]=v;}):el("strong",{text:String(m.stock||0)});
-        ibox.appendChild(el("div",{className:"srow"},[el("span",{text:m.name}),right]));
+        var pk=packOf(m);
+        if(!pk){
+          ibox.appendChild(el("div",{className:"srow"},[el("span",{text:m.name}),countInput("Bestand "+m.name,cur(m),function(v){pending[m.name]=v;})]));
+          return;
+        }
+        var sum=el("div",{className:"muted small"});
+        function upd(){sum.textContent="Zusammen "+fmt(cur(m)+curP(m)*pk.size)+" Stück verfügbar";}
+        ibox.appendChild(el("div",{className:"srow pk1"},[el("div",{},[el("div",{text:m.name+" (einzeln)"}),sum]),countInput("Bestand "+m.name,cur(m),function(v){pending[m.name]=v;upd();})]));
+        ibox.appendChild(el("div",{className:"srow pk2"},[el("div",{},[el("div",{text:pk.name}),el("div",{className:"muted small",text:"je "+fmt(pk.size)+" Stück"})]),countInput("Bestand "+pk.name,curP(m),function(v){pendingP[m.name]=v;upd();})]));
+        upd();
       });
     }
     function fill(){fillD();fillI();}
@@ -1137,6 +1169,7 @@ button.sync.err{color:var(--danger);cursor:pointer}
       w.appendChild(el("div",{className:"row"},[btn("Bestand speichern",function(){
         if(!dirty){info.textContent="Keine Änderungen.";return;}
         Object.keys(pending).forEach(function(k){if(pending[k]>0)L.s[k]=pending[k];else delete L.s[k];});
+        var P=packs();Object.keys(pendingP).forEach(function(k){if(pendingP[k]>0)P[k]=pendingP[k];else delete P[k];});pendingP={};
         L.d=dl.map(function(x){return {id:x.id,count:x.count||0}});pending={};dirty=false;
         persist(true);
         toast(TOK?"Bestand gespeichert.":"Bestand auf diesem Gerät gespeichert.");
@@ -1195,8 +1228,9 @@ button.sync.err{color:var(--danger);cursor:pointer}
       });
       var lists=S.lists;
       if(ex&&ex.name!==name){
-        lists={};Object.keys(S.lists||{}).forEach(function(u){var e=Object.assign({},S.lists[u]),s=Object.assign({},e.s||{});if(s.hasOwnProperty(ex.name)){s[name]=s[ex.name];delete s[ex.name];}e.s=s;lists[u]=e;});
+        lists={};Object.keys(S.lists||{}).forEach(function(u){var e=Object.assign({},S.lists[u]),s=Object.assign({},e.s||{}),p=Object.assign({},e.p||{});if(s.hasOwnProperty(ex.name)){s[name]=s[ex.name];delete s[ex.name];}if(p.hasOwnProperty(ex.name)){p[name]=p[ex.name];delete p[ex.name];}e.s=s;e.p=p;lists[u]=e;});
         if(L&&L.s.hasOwnProperty(ex.name)){L.s[name]=L.s[ex.name];delete L.s[ex.name];}
+        if(L&&L.p&&L.p.hasOwnProperty(ex.name)){L.p[name]=L.p[ex.name];delete L.p[ex.name];}
       }
       save({ingredients:ings,dishes:ds,lists:lists});
     },"primary")]);
